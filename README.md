@@ -1,7 +1,6 @@
-#Proiect la IP
-De realizat jocul vulpea si cainii.
+Proiect la IP - de realizat jocul vulpea si cainii.
 Lista de proiecte: https://edu.info.uaic.ro/introducere-programare/proiecte.html
-Materialu de laborator(Patrut): 
+Materialu de laborator(Patrut): https://edu.info.uaic.ro/introducere-programare/laborator_grafica.html
 
 Barem:
 - Din oficiu: 1p
