@@ -15,10 +15,11 @@ Barem:
 
 Resurse folosite:
 - limbajul C/C++
-- libraria grafica WinBgIm * graphics.h + alte librarii incluse in C/C++
+- libraria grafica WinBgIm + graphics.h + alte librarii incluse in C/C++
 
 Documentatie pentru libraria grafica: 
 - https://home.cs.colorado.edu/~main/cs1300/doc/bgi/bgi.html
 - https://home.cs.colorado.edu/~main/cs1300/doc/bgi/index.html
+
 Documentatie pentru C:
 - https://www.w3schools.com/c/index.php
