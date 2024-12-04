@@ -125,6 +125,7 @@ int main() {
     desenTabla();
     seteazaTabla();
     int jucator = 1;
+    //commit test
     while (1)
     {
         int ok=0;
