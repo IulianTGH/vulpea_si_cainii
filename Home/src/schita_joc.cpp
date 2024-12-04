@@ -109,6 +109,16 @@ void debugInfo() {
         sprintf(l,"Linia: %d", linie+1);  sprintf(c,"Coloana: %d", coloana+1);
         outtextxy(720,260,l);   outtextxy(720,280,c);
     }
+    if(kbhit()){
+        char key = getch();
+        if(key==32) afisareMatrice();
+        else{
+        outtextxy(380,560,"                                                ");
+        char keyText[100];
+        sprintf(keyText,"Ai apasat tasta: %c(%d)",key,key);
+        outtextxy(380,560,keyText);
+        }
+    }
 }
 
 void afisareMatrice() {
@@ -133,14 +143,8 @@ int main() {
         //OLD_punePiesa(&jucator);
         if(!win) mutaPiesa(&jucator);
         if(kbhit()) {
-            outtextxy(380,560,"                                                ");
-            char keyText[100];
             char key = getch();
-            sprintf(keyText,"Ai apasat tasta: %c(%d)",key,key);
-            outtextxy(380,560,keyText);
             if(key==27) break;
-            if(key==32) afisareMatrice();
-
         }
         if(win==1&&ok==0) {
         outtextxy(380,20,"Vulpea a castigat!");
