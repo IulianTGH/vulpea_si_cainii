@@ -95,6 +95,15 @@ void desenTabla() {
     
 }
 
+void afisareMatrice() {
+    for (int i=1; i<=numar; i++) {
+    for (int j=1; j<=numar; j++) {
+        printf("%d\t",TablaDeJoc[i][j]);
+    }
+    printf("\n");
+    }
+}
+
 void debugInfo() {
     int dx=mousex(); int dy=mousey();
     char text[100],toptxt[50],lefttxt[50];
@@ -118,15 +127,6 @@ void debugInfo() {
         sprintf(keyText,"Ai apasat tasta: %c(%d)",key,key);
         outtextxy(380,560,keyText);
         }
-    }
-}
-
-void afisareMatrice() {
-    for (int i=1; i<=numar; i++) {
-    for (int j=1; j<=numar; j++) {
-        printf("%d\t",TablaDeJoc[i][j]);
-    }
-    printf("\n");
     }
 }
 
