@@ -33,9 +33,7 @@ void gameFinish() {
     for (int i = 1; i <= numar; i++)
         for (int j = 1; j <= numar; j++)
             if (TablaDeJoc[i][j] == 1) { // Găsește poziția vulpii
-                int line = i;
-                int column = j;
-                if (mutariPosibile(line,column) > 0)
+                if (mutariPosibile(i,j) > 0)
                     return; // Vulpea mai are mutări, jocul continuă
             }
     // Dacă nu mai are mutări, câinii au câștigat
@@ -65,7 +63,7 @@ void seteazaTabla() {
 
 bool checkMove(int *player) {
     if(TablaDeJoc[linie][coloana]!=0) return false;
-    if((left>x||x>left+8*latura)||(top>y||y>top+8*latura)) return false;
+    if((left>x||x>left+size)||(top>y||y>top+size)) return false;
     if(old_line-linie==1&&abs(coloana-old_column)==1) return true;
     if(*player==1)
     if(abs(old_line-linie)==1&&abs(coloana-old_column)==1) return true;
@@ -79,7 +77,9 @@ void schimbarePozitie(int *player, int old_line, int old_column) {
     drawPiece(xc,yc,*player);
     TablaDeJoc[linie][coloana]=*player;
     TablaDeJoc[old_line][old_column]=0;
-    setfillstyle(SOLID_FILL, BLACK);
+    int color = LIGHTGRAY;
+    if((old_line+old_column)%2==0) color = BLACK;
+    setfillstyle(SOLID_FILL, color);
     bar(left+(old_column-1)*latura+5,top+(old_line-1)*latura+5,left+(old_column)*latura-5,top+old_line*latura-5);
     if(*player==1) *player=2;
     else *player=1;
@@ -119,7 +119,18 @@ void desenTabla() {
     for(int i=1; i<=numar; i++)
     for (int j=1; j<=numar; j++)
     {
-        rectangle(left+latura*(j-1),top+latura*(i-1),left+latura*j,top+latura*i);
+        int color = LIGHTGRAY;
+        if((i+j)%2==0) color = BLACK;
+        setfillstyle(SOLID_FILL,color);
+        int x1,x2,y1,y2;
+        //Coordonate patrat
+        x1=left+(j-1)*latura;
+        y1=top+(i-1)*latura;
+        x2=x1+latura;
+        y2=y1+latura;
+        //Coloram patratul
+        bar(x1,y1,x2,y2);
+        rectangle(x1,y1,x2,y2);
     }
     
 }
