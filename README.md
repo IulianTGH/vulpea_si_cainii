@@ -4,7 +4,7 @@ Lista de proiecte: https://edu.info.uaic.ro/introducere-programare/proiecte.html
 
 Materialu de laborator(Patrut): https://edu.info.uaic.ro/introducere-programare/laborator_grafica.html
 
-## Barem / cerinte facute:
+## Barem / cerinte ramase:
 ~~- Din oficiu: 1p~~
 
 ~~- Jocul se joacă corect, fara niciun fel de greseala la mutari, pe o matrice: 9p~~
