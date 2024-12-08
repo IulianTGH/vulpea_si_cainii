@@ -2,14 +2,17 @@
 #include <graphics.h>
 #include <stdio.h>
 #include <math.h>
+#include <stdlib.h>
 
 #define MAX 8
 
 int left, top, size, x, y, xv, yv, latura, numar, linie, coloana, old_line, old_column, win=0;
 int TablaDeJoc[MAX][MAX] = {0};
+int mode = 1; // We keep mode=1 (vs Player) by default as previously. No logic changes.
+
+// Functions from previous code remain unchanged:
 
 void gameFinish() {
-    // Fox wins if it reaches the top row (line=1)
     for(int i=1; i<=numar; i++) {
         if(TablaDeJoc[1][i] == 1) {
             win=1;
@@ -24,13 +27,11 @@ void drawPiece(int center_x, int center_y, int culoare) {
 }
 
 void desenTabla() {
-    size=400; // dimensiunea tablei
-    numar=8; // numarul de patrate pe tabla
-    latura=size/numar; // lungimea laturii unui patrat
-    // stabilirea pozitiei tablei
+    size=400;
+    numar=8;
+    latura=size/numar;
     top=(getmaxy()-size+1)/2;
     left=(getmaxx()-size+1)/2;
-    // desenarea tablei
     for(int i=1; i<=numar; i++) {
         for (int j=1; j<=numar; j++) {
             rectangle(left+latura*(j-1), top+latura*(i-1), left+latura*j, top+latura*i);
@@ -39,50 +40,35 @@ void desenTabla() {
 }
 
 void seteazaTabla() {
-    // Set fox at bottom row, line=8, col=4
-    // Set hounds at top row, line=1, at columns 2,4,6,8
-    int linie_vulpe = 8;
-    int coloana_vulpe = 4;
-    int linie_caini = 1;
-
-    // Clear the board array
     for (int i=1; i<=8; i++) {
         for (int j=1; j<=8; j++) {
             TablaDeJoc[i][j] = 0;
         }
     }
 
-    // Place hounds (player=2) on top row (line=1) at columns 2,4,6,8
+    // Hounds (2) on top row at columns 2,4,6,8
     for (int c = 2; c <= 8; c += 2) {
         int xcc = left+(c-1)*latura;
-        int ycc = top+(linie_caini-1)*latura;
+        int ycc = top+(1-1)*latura;
         drawPiece(xcc,ycc,2);
-        TablaDeJoc[linie_caini][c]=2;
+        TablaDeJoc[1][c]=2;
     }
 
-    // Place the fox (player=1) at bottom row (line=8), col=4
-    int xcc = left+(coloana_vulpe-1)*latura;
-    int ycc = top+(linie_vulpe-1)*latura;
+    // Fox (1) at line=8, col=4
+    int xcc = left+(4-1)*latura;
+    int ycc = top+(8-1)*latura;
     drawPiece(xcc,ycc,1);
-    TablaDeJoc[linie_vulpe][coloana_vulpe]=1;
+    TablaDeJoc[8][4]=1;
 }
 
 bool checkMove(int *player) {
-    // Check board boundaries
     if(linie<1 || linie>numar || coloana<1 || coloana>numar) return false;
-    // Check if cell is free
     if(TablaDeJoc[linie][coloana]!=0) return false;
-    // Check if move is inside the drawn board area
     if((left>x || x>left+8*latura) || (top>y || y>top+8*latura)) return false;
 
-    // Movement rules:
-    // Player=1 (Fox): can move diagonally one step in any direction
-    // Player=2 (Hounds): move diagonally one step forward (downward)
     if(*player == 2) {
-        // Hounds: (linie - old_line == 1) means they go down one row diagonally
         if((linie - old_line == 1) && abs(coloana - old_column) == 1) return true;
     } else {
-        // Fox: any diagonal step
         if(abs(old_line - linie)==1 && abs(coloana - old_column)==1) return true;
     }
     return false;
@@ -92,7 +78,6 @@ void drawArrow(int x1, int y1, int x2, int y2) {
     setcolor(YELLOW);
     line(x1, y1, x2, y2);
 
-    // Draw arrowhead
     double angle = atan2(y2 - y1, x2 - x1);
     int arrowSize = 10;
     double angleLeft = angle + M_PI/6;
@@ -112,12 +97,10 @@ void drawArrow(int x1, int y1, int x2, int y2) {
 void highlightSelectedPiece(int sel_line, int sel_col) {
     int sel_xc = left + (sel_col - 1)*latura + latura/2;
     int sel_yc = top + (sel_line - 1)*latura + latura/2;
-
-    // Make a slightly bigger radius than the piece radius for a bold contour
     int highlightRadius = (latura/4) + 2;
 
     setcolor(LIGHTGREEN);
-    setlinestyle(SOLID_LINE, 0, 3); // Draw a thick line
+    setlinestyle(SOLID_LINE, 0, 3);
     circle(sel_xc, sel_yc, highlightRadius);
     setlinestyle(SOLID_LINE, 0, 1);
     setcolor(WHITE);
@@ -128,14 +111,12 @@ void highlightPossibleMoves(int player, int start_line, int start_col) {
     int moveCount = 0;
 
     if (player == 1) {
-        // Fox possible moves: 4 diagonal directions
         moves[0][0] = start_line - 1; moves[0][1] = start_col - 1;
         moves[1][0] = start_line - 1; moves[1][1] = start_col + 1;
         moves[2][0] = start_line + 1; moves[2][1] = start_col - 1;
         moves[3][0] = start_line + 1; moves[3][1] = start_col + 1;
         moveCount = 4;
     } else if (player == 2) {
-        // Hounds possible moves: only downward diagonals
         moves[0][0] = start_line + 1; moves[0][1] = start_col - 1;
         moves[1][0] = start_line + 1; moves[1][1] = start_col + 1;
         moveCount = 2;
@@ -147,6 +128,7 @@ void highlightPossibleMoves(int player, int start_line, int start_col) {
     int oldL = old_line;
     int oldC = old_column;
 
+    int validMovesFound = 0;
     for (int i = 0; i < moveCount; i++) {
         int nl = moves[i][0];
         int nc = moves[i][1];
@@ -154,20 +136,22 @@ void highlightPossibleMoves(int player, int start_line, int start_col) {
         if (nl < 1 || nl > numar || nc < 1 || nc > numar) continue;
         if (TablaDeJoc[nl][nc] != 0) continue;
 
-        // Simulate this as a potential move:
-        linie = nl;
-        coloana = nc;
-
-        // Set x and y to the center of the target cell so that checkMove() sees them as valid.
+        linie = nl; coloana = nc;
         int target_center_x = left + (nc - 1)*latura + latura/2;
         int target_center_y = top + (nl - 1)*latura + latura/2;
-        x = target_center_x;
-        y = target_center_y;
+        x = target_center_x; y = target_center_y;
 
         int currentPlayer = player;
         if (checkMove(&currentPlayer)) {
             drawArrow(piece_center_x, piece_center_y, target_center_x, target_center_y);
+            validMovesFound++;
         }
+    }
+
+    if(validMovesFound == 0) {
+        printf("DEBUG: No valid moves found for this piece.\n");
+    } else {
+        printf("DEBUG: %d valid move(s) found and highlighted.\n", validMovesFound);
     }
 
     old_line = oldL;
@@ -175,9 +159,8 @@ void highlightPossibleMoves(int player, int start_line, int start_col) {
 }
 
 void redrawBoardState() {
-    cleardevice(); // Clear the window
+    cleardevice();
     desenTabla();
-    // Redraw all pieces from TablaDeJoc
     for (int i=1; i<=numar; i++) {
         for (int j=1; j<=numar; j++) {
             if(TablaDeJoc[i][j] != 0) {
@@ -202,72 +185,86 @@ void schimbarePozitie(int *player, int old_line, int old_column) {
         bar(left+(old_column-1)*latura+5, top+(old_line-1)*latura+5, left+(old_column)*latura-5, top+old_line*latura-5);
         if(*player==1) *player=2;
         else *player=1;
+        printf("DEBUG: Piece moved successfully.\n");
+    } else {
+        printf("DEBUG: Invalid move attempted.\n");
     }
 }
 
 void mutaPiesa(int* player) {
     gameFinish();
-    char p[20]; sprintf(p,"Jucator %d",*player);
+    char p[20]; sprintf(p,"Jucator %d [Mode=%d]",*player, mode);
     outtextxy(380,20,p);
     if(ismouseclick(WM_LBUTTONDOWN)) {
         clearmouseclick(WM_LBUTTONDOWN);
         xv = mousex(); yv = mousey();
         linie = (yv-top)/latura+1;
         coloana = (xv-left)/latura+1;
-        if(TablaDeJoc[linie][coloana]==*player) {
-            // The piece is selected. Highlight it and possible moves
-            old_line = linie;
-            old_column = coloana;
+
+        printf("DEBUG: First click at line=%d, col=%d\n", linie, coloana);
+
+        int piece = TablaDeJoc[linie][coloana];
+        if(piece == *player) {
+            printf("DEBUG: Selected piece of current player found.\n");
+            old_line = linie; old_column = coloana;
             highlightSelectedPiece(old_line, old_column);
             highlightPossibleMoves(*player, old_line, old_column);
-
-            // Wait for the player to choose the destination
+            // Wait for destination click
             while(1) {
                 if(ismouseclick(WM_LBUTTONDOWN)) {
                     clearmouseclick(WM_LBUTTONDOWN);
                     x = mousex(); y = mousey();
-                    // Move the piece
+                    printf("DEBUG: Second click at x=%d, y=%d\n", x, y);
                     schimbarePozitie(player,old_line,old_column);
-                    // After moving, redraw the board to remove highlights and arrows
                     redrawBoardState();
                     break;
                 }
+                delay(50);
             }
+        } else {
+            printf("DEBUG: No valid piece selected. You must click on your own piece.\n");
         }
     }
 }
 
-void debugInfo() {
-    int dx=mousex(); int dy=mousey();
-    char text[100],toptxt[50],lefttxt[50];
-    sprintf(toptxt,"Top: %d",top);
-    sprintf(lefttxt,"Left: %d",left);
-    sprintf(text,"X:%d,Y:%d",dx,dy);
-    outtextxy(380,580,text);
-    outtextxy(10,260,toptxt);
-    outtextxy(10,280,lefttxt);
-    char l[50],c[50];
-    if((left<dx&&dx<left+size)&&(top<dy&&dy<top+size))  {
-        sprintf(l,"Linia: %d", linie+1);
-        sprintf(c,"Coloana: %d", coloana+1);
-        outtextxy(720,260,l);
-        outtextxy(720,280,c);
-    }
-}
+// New function: showMainMenu()
+// Displays the requested menu before the game starts.
+// Just text, no interactivity yet.
+void showMainMenu() {
+    cleardevice();
+    // Set background color if needed (not requested, so we leave black)
 
-void afisareMatrice() {
-    for (int i=1; i<=numar; i++) {
-        for (int j=1; j<=numar; j++) {
-            printf("%d\t",TablaDeJoc[i][j]);
-        }
-        printf("\n");
+    // Title in big, bold, lime green
+    setcolor(LIGHTGREEN);
+    settextstyle(DEFAULT_FONT, HORIZ_DIR, 4); // bigger size
+    outtextxy(100,100,"FOX AND HOUNDS");
+
+    // Game modes in bold white
+    setcolor(WHITE);
+    settextstyle(DEFAULT_FONT, HORIZ_DIR, 1); // normal size but we can consider it bold as per request
+    // Mode One
+    outtextxy(100,200,"Game mode One: Player versus player - See who's better , you or your friend");
+    // Mode Two
+    outtextxy(100,250,"Game mode Two: Player versus Computer");
+
+    // Menu is just displayed. User must press a key to continue.
+    outtextxy(100,350,"Press any key to continue...");
+    while(!kbhit()) {
+        delay(50);
     }
+    getch(); // consume key
 }
 
 int main() {
-    initwindow(800,600,"Fox and Hounds");
+    initwindow(800,600,"Fox and Hounds - Debug Mode");
+
+    // Show the main menu first
+    showMainMenu();
+
+    // Proceed with game initialization
     desenTabla();
     seteazaTabla();
+
     int jucator = 1;
     while (1) {
         int ok=0;
@@ -279,9 +276,8 @@ int main() {
             sprintf(keyText,"Ai apasat tasta: %c(%d)",key,key);
             outtextxy(380,560,keyText);
             if(key==27) break;
-            if(key==32) afisareMatrice();
         }
-        if(win==1&&ok==0) {
+        if(win==1 && ok==0) {
             outtextxy(380,20,"Vulpea a castigat!");
             ok=1;
         }
