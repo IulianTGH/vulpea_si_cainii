@@ -43,11 +43,11 @@ void setGameMode(char key) {
             gameMode=MODE_TWO_PLAYERS;
             break;
         case KEY_1:
-            printf("Eroare - Modul de joc (vs CPU Random) nu este implementat inca\n");
+            printf("Mod de joc selectat: Vs CPU (Random)\n");
             gameMode=MODE_VS_CPU_RANDOM;
             break;
         case KEY_2:
-            printf("Eroare - Modul de joc (vs CPU Strategie) nu este implementat inca\n");
+            printf("Eroare - Modul de joc Vs CPU (Strategie) nu este implementat inca\n");
             gameMode=MODE_VS_CPU_STRATEGY;
             break;
         default:
@@ -481,7 +481,7 @@ int main() {
             else {
                 if(gameMode==MODE_TWO_PLAYERS) showTurn();
                 playerMove();
-                if(computerTurn) randomMove();
+                if(computerTurn&&gameMode==MODE_VS_CPU_RANDOM) randomMove();
             }
 
             if (kbhit()) {
