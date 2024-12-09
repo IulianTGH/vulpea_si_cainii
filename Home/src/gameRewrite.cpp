@@ -175,27 +175,6 @@ void drawBoard() {
         if(GameBoard[i][j] != 0) drawPiece(GameBoard[i][j],x1,y1);
     }
 }
-#pragma endregion
-
-//Move functions
-bool isLegalMove(int player, int start_line, int start_col, int dest_line, int dest_col) {
-    // Check if cell is free
-    if(GameBoard[dest_line][dest_col]!=0) return false;
-
-    // validate destination boundaries
-    if (dest_line < 0 || dest_line >= BOARD_SQUARES || dest_col < 0 || dest_col >= BOARD_SQUARES) {
-        return false; 
-    }
-
-    // Movement rules:
-    if(player == DOGS)
-        // Dogs can only move forward diagonally
-        if(start_line - dest_line == 1 && abs(start_col - dest_col) == 1) return true;
-    if(player == FOX)
-        // Fox can move one square diagonally in any direction
-        if(abs(start_line - dest_line) == 1 && abs(start_col - dest_col) == 1) return true;
-    return false;
-}
 
 void highlightPossibleMoves(int player, int line, int col) {
     int dest_line, dest_col;
@@ -220,6 +199,27 @@ void highlightPossibleMoves(int player, int line, int col) {
             }
         }
     }
+}
+#pragma endregion
+
+#pragma region Movement Logic
+bool isLegalMove(int player, int start_line, int start_col, int dest_line, int dest_col) {
+    // Check if cell is free
+    if(GameBoard[dest_line][dest_col]!=0) return false;
+
+    // validate destination boundaries
+    if (dest_line < 0 || dest_line >= BOARD_SQUARES || dest_col < 0 || dest_col >= BOARD_SQUARES) {
+        return false; 
+    }
+
+    // Movement rules:
+    if(player == DOGS)
+        // Dogs can only move forward diagonally
+        if(start_line - dest_line == 1 && abs(start_col - dest_col) == 1) return true;
+    if(player == FOX)
+        // Fox can move one square diagonally in any direction
+        if(abs(start_line - dest_line) == 1 && abs(start_col - dest_col) == 1) return true;
+    return false;
 }
 
 int movesLeft(int line, int column) {
@@ -264,6 +264,11 @@ void movePiece() {
         }
     }
 }
+#pragma endregion
+
+#pragma region Computer Logic
+
+#pragma endregion
 
 void checkWin() {
     // Verifică dacă vulpea a ajuns pe ultima linie
