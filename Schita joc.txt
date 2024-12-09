@@ -1,282 +1,421 @@
-#include <winbgim.h>
-#include <graphics.h>
 #include <stdio.h>
-#include <math.h>
-#include <stdlib.h>
+#include <graphics.h>
+#include <winbgim.h>
+#include <stdlib.h> // For rand()
+#include <time.h>   // For time(NULL)
 
-#define MAX 8
+#define KEY_0 48
+#define KEY_1 49
+#define KEY_2 50
+#define MODE_TWO_PLAYERS 0
+#define MODE_VS_CPU_RANDOM 1
+#define MODE_VS_CPU_STRATEGY 2
+#define KEY_ESC 27
+#define FOX 1
+#define DOGS 2
+#define BOARD_SQUARES 8
 
-int left, top, size, x, y, xv, yv, latura, numar, linie, coloana, old_line, old_column, win=0;
-int TablaDeJoc[MAX][MAX] = {0};
-int mode = 1;
+int GameBoard[BOARD_SQUARES][BOARD_SQUARES] = {0};
+int gameMode = -1, playerTurn = 0, winState = 0;
+int board_size, board_top, board_left, square_size;
+int x,y;
+bool redraw = false; //Flag for redrawing the game board
 
-void gameFinish() {
-    for(int i=1; i<=numar; i++) {
-        if(TablaDeJoc[1][i] == 1) {
-            win=1;
-            return;
+#pragma region Core Functions
+void setGameMode(char key) {
+    cleardevice();
+    char text[200];
+    switch (key) {
+        case KEY_0:
+            sprintf(text,"Mod de joc selectat: Doi Jucatori");
+            outtextxy((800-textwidth(text))/2,300,text);
+            gameMode=MODE_TWO_PLAYERS;
+            break;
+        case KEY_1:
+            // Previously was error, now we implement random CPU
+            sprintf(text,"Mod de joc selectat: Vs CPU (Random)");
+            outtextxy((800-textwidth(text))/2,300,text);
+            gameMode=MODE_VS_CPU_RANDOM;
+            break;
+        case KEY_2:
+            sprintf(text,"Eroare - Modul de joc (vs CPU Strategie) nu este implementat inca");
+            outtextxy((800-textwidth(text))/2,300,text);
+            gameMode=MODE_VS_CPU_STRATEGY;
+            break;
+        default:
+            sprintf(text,"Eroare - Selectie Invalida");
+            outtextxy((800-textwidth(text))/2,300,text);
+            break;
+    }
+}
+
+bool gameSetup() {
+    bool valid = false;
+    char key;
+    char text[100];
+    sprintf(text, "Select game mode:");
+    outtextxy((800 - textwidth(text)) / 2, 200, text);
+    sprintf(text, "0 - Two Players     1 - Vs CPU (Random)     2 - Vs CPU (Strategy)");
+    outtextxy((800 - textwidth(text)) / 2, 300, text);
+
+    while (!valid) {
+        if (kbhit()) {
+            key = getch();
+            if (key == KEY_ESC) {
+                return true; // Signal to return to main menu
+            }
+            if (key < 48 || key > 50) {
+                sprintf(text, "Error: Invalid selection. Press 0, 1, or 2.");
+                outtextxy((800 - textwidth(text)) / 2, 500, text);
+            } else {
+                valid = true; // Valid input
+            }
         }
     }
+
+    setGameMode(key);
+    return false; // setup successful
 }
 
-void drawPiece(int center_x, int center_y, int culoare) {
-    setfillstyle(SOLID_FILL, culoare);
-    fillellipse(center_x+latura/2, center_y+latura/2, latura/4, latura/4);
-}
-
-void desenTabla() {
-    size=400;
-    numar=8;
-    latura=size/numar;
-    top=(getmaxy()-size+1)/2;
-    left=(getmaxx()-size+1)/2;
-    for(int i=1; i<=numar; i++) {
-        for (int j=1; j<=numar; j++) {
-            rectangle(left+latura*(j-1), top+latura*(i-1), left+latura*j, top+latura*i);
+void resetGameState() {
+    for (int i = 0; i < BOARD_SQUARES; i++) {
+        for (int j = 0; j < BOARD_SQUARES; j++) {
+            GameBoard[i][j] = 0;
         }
     }
+    gameMode = -1;
+    playerTurn = FOX;
+    winState=0;
 }
 
-void seteazaTabla() {
-    for (int i=1; i<=8; i++) {
-        for (int j=1; j<=8; j++) {
-            TablaDeJoc[i][j] = 0;
-        }
-    }
-
-    for (int c = 2; c <= 8; c += 2) {
-        int xcc = left+(c-1)*latura;
-        int ycc = top+(1-1)*latura;
-        drawPiece(xcc,ycc,2);
-        TablaDeJoc[1][c]=2;
-    }
-
-    int xcc = left+(4-1)*latura;
-    int ycc = top+(8-1)*latura;
-    drawPiece(xcc,ycc,1);
-    TablaDeJoc[8][4]=1;
-}
-
-bool checkMove(int *player) {
-    if(linie<1 || linie>numar || coloana<1 || coloana>numar) return false;
-    if(TablaDeJoc[linie][coloana]!=0) return false;
-    if((left>x || x>left+8*latura) || (top>y || y>top+8*latura)) return false;
-
-    if(*player == 2) {
-        if((linie - old_line == 1) && abs(coloana - old_column) == 1) return true;
-    } else {
-        if(abs(old_line - linie)==1 && abs(coloana - old_column)==1) return true;
-    }
-    return false;
-}
-
-void drawArrow(int x1, int y1, int x2, int y2) {
-    setcolor(YELLOW);
-    line(x1, y1, x2, y2);
-
-    double angle = atan2(y2 - y1, x2 - x1);
-    int arrowSize = 10;
-    double angleLeft = angle + M_PI/6;
-    double angleRight = angle - M_PI/6;
-
-    int xLeft = x2 - arrowSize * cos(angleLeft);
-    int yLeft = y2 - arrowSize * sin(angleLeft);
-    int xRight = x2 - arrowSize * cos(angleRight);
-    int yRight = y2 - arrowSize * sin(angleRight);
-
-    line(x2, y2, xLeft, yLeft);
-    line(x2, y2, xRight, yRight);
-
+void saveGame() {
     setcolor(WHITE);
+    char text[100];
+    sprintf(text,"Would you like to save the match before exiting?");
+    outtextxy((800-textwidth(text))/2,200,text);
+    sprintf(text,"0 - NO                    1 - YES");
+    outtextxy((800-textwidth(text))/2,300,text);
+    while (1) {
+        if(kbhit()) {
+            char key=getch();
+            if(key==KEY_1) {
+                FILE *saveFile;
+                saveFile = fopen("save.txt", "w");
+                fprintf(saveFile,"%d %d\n",gameMode,playerTurn);
+                for(int i=0; i<8; i++) {
+                    for(int j=0; j<8; j++)
+                        fprintf(saveFile,"%d ",GameBoard[i][j]);
+                    fprintf(saveFile,"\n");
+                }
+                fclose(saveFile);
+                break;
+            }
+            if(key==KEY_0) break;
+            sprintf(text,"Error - Invalid selection. Press 0 or 1.");
+            outtextxy((800-textwidth(text))/2,500,text);
+        }
+    }
 }
 
-void highlightSelectedPiece(int sel_line, int sel_col) {
-    int sel_xc = left + (sel_col - 1)*latura + latura/2;
-    int sel_yc = top + (sel_line - 1)*latura + latura/2;
-    int highlightRadius = (latura/4) + 2;
+void writeTable() {
+    for(int i=0; i<8; i++) {
+        for(int j=0; j<8; j++)
+            printf("%d ",GameBoard[i][j]);
+        printf("\n");
+    }
+}
+#pragma endregion
+
+#pragma region Draw Function
+void drawSquare(int square_color, int x1, int y1, int x2, int y2) {
+    setfillstyle(SOLID_FILL,square_color);
+    bar(x1,y1,x2,y2);
+    setcolor(DARKGRAY);
+    rectangle(x1,y1,x2,y2);
+}
+
+void drawPiece(int player, int x, int y) {
+    setfillstyle(SOLID_FILL, player);
+    fillellipse(x+square_size/2,y+square_size/2,square_size/4,square_size/4);
+    setcolor(WHITE);
+    circle(x+square_size/2,y+square_size/2,square_size/4);
+}
+
+void highlightPiece(int line, int col) {
+    int xc = board_left+col*square_size+square_size/2;
+    int yc = board_top+line*square_size+square_size/2;
+
+    int highlightRadius = (square_size/4) + 2;
 
     setcolor(LIGHTGREEN);
     setlinestyle(SOLID_LINE, 0, 3);
-    circle(sel_xc, sel_yc, highlightRadius);
+    circle(xc, yc, highlightRadius);
     setlinestyle(SOLID_LINE, 0, 1);
     setcolor(WHITE);
 }
 
-void highlightPossibleMoves(int player, int start_line, int start_col) {
-    int moves[4][2];
-    int moveCount = 0;
+void drawBoard() {
+    board_size = 400;
+    square_size = board_size / BOARD_SQUARES;
+    board_top = (getmaxy() - board_size + 1) / 2;
+    board_left = (getmaxx() - board_size + 1) / 2;
+    for(int i = 0; i < BOARD_SQUARES; i++)
+    for (int j = 0; j < BOARD_SQUARES; j++)
+    {
+        int color = DARKGRAY;
+        if((i+j) %2 == 0) color = BLACK;
+        int x1,x2,y1,y2;
+        x1 = board_left + j * square_size;
+        y1 = board_top + i * square_size;
+        x2 = x1 + square_size;
+        y2 = y1 + square_size;
+        drawSquare(color,x1,y1,x2,y2);
+        if(GameBoard[i][j] != 0) drawPiece(GameBoard[i][j],x1,y1);
+    }
+}
+#pragma endregion
 
-    if (player == 1) {
-        moves[0][0] = start_line - 1; moves[0][1] = start_col - 1;
-        moves[1][0] = start_line - 1; moves[1][1] = start_col + 1;
-        moves[2][0] = start_line + 1; moves[2][1] = start_col - 1;
-        moves[3][0] = start_line + 1; moves[3][1] = start_col + 1;
-        moveCount = 4;
-    } else if (player == 2) {
-        moves[0][0] = start_line + 1; moves[0][1] = start_col - 1;
-        moves[1][0] = start_line + 1; moves[1][1] = start_col + 1;
-        moveCount = 2;
+bool isLegalMove(int player, int start_line, int start_col, int dest_line, int dest_col) {
+    if(GameBoard[dest_line][dest_col]!=0) return false;
+    if (dest_line < 0 || dest_line >= BOARD_SQUARES || dest_col < 0 || dest_col >= BOARD_SQUARES) {
+        return false;
     }
 
-    int piece_center_x = left + (start_col - 1)*latura + latura/2;
-    int piece_center_y = top + (start_line - 1)*latura + latura/2;
-
-    int oldL = old_line;
-    int oldC = old_column;
-
-    int validMovesFound = 0;
-    for (int i = 0; i < moveCount; i++) {
-        int nl = moves[i][0];
-        int nc = moves[i][1];
-
-        if (nl < 1 || nl > numar || nc < 1 || nc > numar) continue;
-        if (TablaDeJoc[nl][nc] != 0) continue;
-
-        linie = nl; coloana = nc;
-        int target_center_x = left + (nc - 1)*latura + latura/2;
-        int target_center_y = top + (nl - 1)*latura + latura/2;
-        x = target_center_x; y = target_center_y;
-
-        int currentPlayer = player;
-        if (checkMove(&currentPlayer)) {
-            drawArrow(piece_center_x, piece_center_y, target_center_x, target_center_y);
-            validMovesFound++;
-        }
-    }
-
-    if(validMovesFound == 0) {
-        printf("DEBUG: No valid moves found for this piece.\n");
-    } else {
-        printf("DEBUG: %d valid move(s) found and highlighted.\n", validMovesFound);
-    }
-
-    old_line = oldL;
-    old_column = oldC;
+    if(player == DOGS)
+        if(start_line - dest_line == 1 && abs(start_col - dest_col) == 1) return true;
+    if(player == FOX)
+        if(abs(start_line - dest_line) == 1 && abs(start_col - dest_col)==1) return true;
+    return false;
 }
 
-void redrawBoardState() {
-    cleardevice();
-    desenTabla();
-    for (int i=1; i<=numar; i++) {
-        for (int j=1; j<=numar; j++) {
-            if(TablaDeJoc[i][j] != 0) {
-                int xcc = left+(j-1)*latura;
-                int ycc = top+(i-1)*latura;
-                drawPiece(xcc,ycc,TablaDeJoc[i][j]);
+void highlightPossibleMoves(int player, int line, int col) {
+    int dest_line, dest_col;
+    for (int dx = -1; dx <= 1; dx+=2) {
+        for (int dy = -1; dy <= 1; dy+=2) {
+            dest_line = line + dx;
+            dest_col = col + dy;
+            if (isLegalMove(player, line, col, dest_line, dest_col)) {
+                int x1 = board_left + dest_col * square_size;
+                int y1 = board_top + dest_line * square_size;
+                int x2 = x1 + square_size;
+                int y2 = y1 + square_size;
+                int color = LIGHTRED;
+                drawSquare(color, x1, y1, x2, y2);
             }
         }
     }
 }
 
-void schimbarePozitie(int *player, int old_line, int old_column) {
-    linie = (y-top)/latura+1;
-    coloana = (x-left)/latura+1;
-    if(checkMove(player)) {
-        int xc = left+(coloana-1)*latura;
-        int yc = top+(linie-1)*latura;
-        drawPiece(xc,yc,*player);
-        TablaDeJoc[linie][coloana]=*player;
-        TablaDeJoc[old_line][old_column]=0;
-        setfillstyle(SOLID_FILL, BLACK);
-        bar(left+(old_column-1)*latura+5, top+(old_line-1)*latura+5, left+(old_column)*latura-5, top+old_line*latura-5);
-        if(*player==1) *player=2;
-        else *player=1;
-        printf("DEBUG: Piece moved successfully.\n");
-    } else {
-        printf("DEBUG: Invalid move attempted.\n");
-    }
+int movesLeft(int line, int column) {
+    int moves = 0;
+    if (line > 0 && column > 0 && GameBoard[line - 1][column - 1] == 0)    moves++;
+    if (line > 0 && column < 7 && GameBoard[line - 1][column + 1] == 0)    moves++;
+    if (line < 7 && column > 0 && GameBoard[line + 1][column - 1] == 0)    moves++;
+    if (line < 7 && column < 7 && GameBoard[line + 1][column + 1] == 0)    moves++;
+    return moves;
 }
 
-void mutaPiesa(int* player) {
-    gameFinish();
-    char p[20]; sprintf(p,"Jucator %d [Mode=%d]",*player, mode);
-    outtextxy(380,20,p);
+void movePiece() {
     if(ismouseclick(WM_LBUTTONDOWN)) {
         clearmouseclick(WM_LBUTTONDOWN);
-        xv = mousex(); yv = mousey();
-        linie = (yv-top)/latura+1;
-        coloana = (xv-left)/latura+1;
-
-        printf("DEBUG: First click at line=%d, col=%d\n", linie, coloana);
-
-        int piece = TablaDeJoc[linie][coloana];
-        if(piece == *player) {
-            printf("DEBUG: Selected piece of current player found.\n");
-            old_line = linie; old_column = coloana;
-            highlightSelectedPiece(old_line, old_column);
-            highlightPossibleMoves(*player, old_line, old_column);
-
-            while(1) {
+        x = mousex(); y = mousey();
+        int start_line = (y-board_top)/square_size; int start_col = (x-board_left)/square_size;
+        if(GameBoard[start_line][start_col]==playerTurn) {
+            highlightPiece(start_line,start_col);
+            highlightPossibleMoves(playerTurn,start_line,start_col);
+            while (1) {
                 if(ismouseclick(WM_LBUTTONDOWN)) {
                     clearmouseclick(WM_LBUTTONDOWN);
-                    x = mousex(); y = mousey();
-                    printf("DEBUG: Second click at x=%d, y=%d\n", x, y);
-                    schimbarePozitie(player,old_line,old_column);
-                    redrawBoardState();
+                    x = mousex(); y=mousey();
+                    int line = (y-board_top)/square_size; int column = (x-board_left)/square_size;
+                    if(isLegalMove(GameBoard[start_line][start_col],start_line,start_col,line,column)) {
+                        GameBoard[line][column]=GameBoard[start_line][start_col];
+                        GameBoard[start_line][start_col]=0;
+                        if(gameMode == MODE_TWO_PLAYERS) {
+                            if(playerTurn == FOX) playerTurn = DOGS;
+                            else if (playerTurn == DOGS) playerTurn = FOX;
+                        } else if(gameMode == MODE_VS_CPU_RANDOM) {
+                            // In vs CPU (Random) mode, after human moves (FOX), turn goes to DOGS
+                            if(playerTurn == FOX) playerTurn = DOGS;
+                            else if (playerTurn == DOGS) playerTurn = FOX;
+                        }
+                    }
+                    redraw=true;
                     break;
                 }
-                delay(50);
             }
-        } else {
-            printf("DEBUG: No valid piece selected. You must click on your own piece.\n");
         }
     }
 }
 
-void showMainMenu() {
-    cleardevice(); // Clear the screen
-
-    // Title in big, bold, lime green
-    setcolor(LIGHTGREEN);
-    settextstyle(DEFAULT_FONT, HORIZ_DIR, 6); // Larger font size for title
-    outtextxy(300, 150, "FOX AND HOUNDS"); // Centered horizontally for the 1200x1000 window
-
-    // Game modes in bold white
-    setcolor(WHITE);
-    settextstyle(DEFAULT_FONT, HORIZ_DIR, 3); // Medium-large font size for game modes
-    outtextxy(200, 300, "Game mode One: Player versus player");
-    outtextxy(200, 400, "Game mode Two: Player versus Computer");
-
-    // Instruction to continue
-    settextstyle(DEFAULT_FONT, HORIZ_DIR, 2); // Slightly smaller font size for instruction
-    setcolor(YELLOW); // Bright yellow for visibility
-    outtextxy(400, 600, "Press any key to continue...");
-
-    // Wait for user input
-    while(!kbhit()) {
-        delay(50); // Allow processing other events while waiting for a keypress
+void checkWin() {
+    for (int i = 0; i < BOARD_SQUARES; i++) {
+        if (GameBoard[BOARD_SQUARES-1][i] == FOX) {
+            winState = 1;
+            return;
+        }
     }
-    getch(); // Consume the key press
+
+    for (int i = 0; i < BOARD_SQUARES; i++)
+        for (int j = 0; j < BOARD_SQUARES; j++)
+            if (GameBoard[i][j] == FOX)
+                if (movesLeft(i,j)) {
+                    winState = 0;
+                    return;
+                }
+    winState = 2;
+}
+
+// New function for random CPU moves when gameMode == MODE_VS_CPU_RANDOM
+void computerRandomMove() {
+    // Collect all DOGS moves
+    int validMoves[64][4];
+    int moveCount = 0;
+
+    for (int i = 0; i < BOARD_SQUARES; i++) {
+        for (int j = 0; j < BOARD_SQUARES; j++) {
+            if (GameBoard[i][j] == DOGS) {
+                // DOGS move forward (up the board), so possible moves are i-1, j-1 and i-1, j+1
+                int moves[2][2] = {
+                    {i-1, j-1},
+                    {i-1, j+1}
+                };
+                for(int m=0;m<2;m++) {
+                    int nl = moves[m][0];
+                    int nc = moves[m][1];
+                    if(nl>=0 && nl<BOARD_SQUARES && nc>=0 && nc<BOARD_SQUARES && GameBoard[nl][nc]==0) {
+                        if(isLegalMove(DOGS,i,j,nl,nc)) {
+                            validMoves[moveCount][0]=i;
+                            validMoves[moveCount][1]=j;
+                            validMoves[moveCount][2]=nl;
+                            validMoves[moveCount][3]=nc;
+                            moveCount++;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if(moveCount==0) {
+        // No moves for DOGS, do nothing
+        return;
+    }
+
+    srand(time(NULL));
+    int randIndex = rand()%moveCount;
+    int start_line = validMoves[randIndex][0];
+    int start_col = validMoves[randIndex][1];
+    int end_line = validMoves[randIndex][2];
+    int end_col = validMoves[randIndex][3];
+
+    // Make the move
+    GameBoard[end_line][end_col] = DOGS;
+    GameBoard[start_line][start_col] = 0;
+    // After DOGS move, back to FOX
+    playerTurn = FOX;
+    redraw = true;
 }
 
 int main() {
-    initwindow(1200,1000,"Fox and Hounds - Debug Mode");
+    FILE *saveFile;
+    initwindow(800, 600, "Proiect");
+    char newGame;
 
-    // Show the main menu first
-    showMainMenu();
-
-    // Proceed with game initialization
-    desenTabla();
-    seteazaTabla();
-
-    int jucator = 1;
     while (1) {
-        int ok=0;
-        if(!win) mutaPiesa(&jucator);
-        if(kbhit()) {
-            outtextxy(380,560,"                                                ");
-            char keyText[100];
-            char key = getch();
-            sprintf(keyText,"Ai apasat tasta: %c(%d)",key,key);
-            outtextxy(380,560,keyText);
-            if(key==27) break;
+        cleardevice();
+        setcolor(WHITE);
+
+        char text[100];
+        sprintf(text, "Select an option:");
+        outtextxy((800 - textwidth(text)) / 2, 200, text);
+        sprintf(text, "0 - New Game          1 - Continue Last");
+        outtextxy((800 - textwidth(text)) / 2, 300, text);
+
+        while (1) {
+            if (kbhit()) {
+                newGame = getch();
+                if (newGame == KEY_ESC) {
+                    closegraph();
+                    return 0;
+                }
+                if (newGame == KEY_0 || newGame == KEY_1) {
+                    break;
+                }
+                sprintf(text, "Error: Invalid selection. Press 1 or 0.");
+                outtextxy((800 - textwidth(text)) / 2, 500, text);
+            }
         }
-        if(win==1 && ok==0) {
-            outtextxy(380,20,"Vulpea a castigat!");
-            ok=1;
+
+        cleardevice();
+
+        switch (newGame) {
+            case KEY_0:
+                resetGameState();
+                if (gameSetup()) {
+                    continue;
+                }
+                for (int i = 0; i < 8; i += 2) GameBoard[7][i] = DOGS;
+                GameBoard[0][3] = FOX;
+                cleardevice(); drawBoard();
+                break;
+
+            case KEY_1:
+                saveFile = fopen("save.txt", "r");
+                if (saveFile == NULL) {
+                    closegraph();
+                    printf("Error: Could not open save file.\n");
+                    return 1;
+                }
+                fscanf(saveFile, "%d %d", &gameMode, &playerTurn);
+                for (int i = 0; i < 8; i++) {
+                    for (int j = 0; j < 8; j++) {
+                        fscanf(saveFile, "%d", &GameBoard[i][j]);
+                    }
+                }
+                fclose(saveFile);
+                cleardevice(); drawBoard();
+                break;
+
+            default:
+                printf("Error: Invalid selection.\n");
+                return 0;
         }
-        delay(50);
+
+        while (1) {
+            if (redraw) {
+                cleardevice();
+                drawBoard();
+                redraw = false;
+            }
+
+            checkWin();
+
+            if(winState==FOX) printf("A castigat vulpea!");
+            else if(winState==DOGS) printf("Au castigat cainii!");
+            else {
+                // Human move
+                movePiece();
+
+                // If game mode is random CPU and after human move it's DOGS turn, do CPU move
+                if(gameMode==MODE_VS_CPU_RANDOM && playerTurn==DOGS && winState==0) {
+                    computerRandomMove();
+                }
+            }
+
+            if (kbhit()) {
+                char key = getch();
+                if (key == KEY_ESC) {
+                    cleardevice();
+                    if(winState == 0) saveGame();
+                    break;
+                }
+            }
+
+            delay(50);
+        }
     }
+
     closegraph();
     return 0;
 }
