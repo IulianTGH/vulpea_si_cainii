@@ -17,7 +17,6 @@
 #define FOX 1
 #define DOGS 2
 #define BOARD_SQUARES 8
-//application window
 
 //screen
 int screen_width = 800;
