@@ -1,22 +1,36 @@
 #include <stdio.h>
 #include <graphics.h>
 #include <winbgim.h>
+#include <math.h>
+#include <stdlib.h>
+#include <time.h>
 
+//input
 #define KEY_0 48
 #define KEY_1 49
 #define KEY_2 50
+#define KEY_ESC 27
+//game logic
 #define MODE_TWO_PLAYERS 0
 #define MODE_VS_CPU_RANDOM 1
 #define MODE_VS_CPU_STRATEGY 2
-#define KEY_ESC 27
 #define FOX 1
 #define DOGS 2
 #define BOARD_SQUARES 8
+//application window
 
-int GameBoard[BOARD_SQUARES][BOARD_SQUARES] = {0};
+//screen
+int screen_width = 800;
+int screen_height = 600;
+//game logic
 int gameMode = -1, playerTurn = 0, winState = 0;
+bool computerTurn = false; //flag for computer turn
+//game board
 int board_size, board_top, board_left, square_size;
+int GameBoard[BOARD_SQUARES][BOARD_SQUARES] = {0};
+//mouse
 int x,y;
+
 bool redraw = false; //Flag for redrawing the game board
 
 #pragma region Core Functions
@@ -25,23 +39,19 @@ void setGameMode(char key) {
     char text[200];
     switch (key) {
         case KEY_0:
-            sprintf(text,"Mod de joc selectat: Doi Jucatori");
-            outtextxy((800-textwidth(text))/2,300,text);
-            gameMode=0;
+            printf("Mod de joc selectat: Doi Jucatori\n");
+            gameMode=MODE_TWO_PLAYERS;
             break;
         case KEY_1:
-            sprintf(text,"Eroare - Modul de joc (vs CPU Random) nu este implementat inca");
-            outtextxy((800-textwidth(text))/2,300,text);
-            gameMode=1;
+            printf("Eroare - Modul de joc (vs CPU Random) nu este implementat inca\n");
+            gameMode=MODE_VS_CPU_RANDOM;
             break;
         case KEY_2:
-            sprintf(text,"Eroare - Modul de joc (vs CPU Strategie) nu este implementat inca");
-            outtextxy((800-textwidth(text))/2,300,text);
-            gameMode=2;
+            printf("Eroare - Modul de joc (vs CPU Strategie) nu este implementat inca\n");
+            gameMode=MODE_VS_CPU_STRATEGY;
             break;
         default:
-            sprintf(text,"Eroare - Selectie Invalida");
-            outtextxy((800-textwidth(text))/2,300,text);
+            printf("Eroare - Selectie Invalida\n");
             break;
     }
 }
@@ -51,9 +61,9 @@ bool gameSetup() {
     char key;
     char text[100];
     sprintf(text, "Select game mode:");
-    outtextxy((800 - textwidth(text)) / 2, 200, text);
+    outtextxy((screen_width - textwidth(text)) / 2, 200, text);
     sprintf(text, "0 - Two Players     1 - Vs CPU (Random)     2 - Vs CPU (Strategy)");
-    outtextxy((800 - textwidth(text)) / 2, 300, text);
+    outtextxy((screen_width - textwidth(text)) / 2, screen_height/2, text);
 
     while (!valid) {
         if (kbhit()) {
@@ -61,9 +71,9 @@ bool gameSetup() {
             if (key == KEY_ESC) {
                 return true; // Signal to return to the main menu
             }
-            if (key < 48 || key > 50) {
+            if (key < KEY_0 || key > KEY_2) {
                 sprintf(text, "Error: Invalid selection. Press 0, 1, or 2.");
-                outtextxy((800 - textwidth(text)) / 2, 500, text);
+                outtextxy((screen_width - textwidth(text)) / 2, 500, text);
             } else {
                 valid = true; // Valid input
             }
@@ -90,9 +100,9 @@ void saveGame() {
     setcolor(WHITE);
     char text[100];
     sprintf(text,"Would you like to save the match before exiting?");
-    outtextxy((800-textwidth(text))/2,200,text);
+    outtextxy((screen_width-textwidth(text))/2,200,text);
     sprintf(text,"0 - NO                    1 - YES");
-    outtextxy((800-textwidth(text))/2,300,text);
+    outtextxy((screen_width-textwidth(text))/2,screen_height/2,text);
     while (1) {
         if(kbhit()) {
             char key=getch();
@@ -110,7 +120,7 @@ void saveGame() {
             }
             if(key==KEY_0) break;
             sprintf(text,"Error - Invalid selection. Press 0 or 1.");
-            outtextxy((800-textwidth(text))/2,500,text);
+            outtextxy((screen_width-textwidth(text))/2,500,text);
         }
     }
 }
@@ -134,7 +144,9 @@ void drawSquare(int square_color, int x1, int y1, int x2, int y2) {
 }
 
 void drawPiece(int player, int x, int y) {
-    setfillstyle(SOLID_FILL, player);
+    int color = FOX;
+    if(player>1) color = DOGS;
+    setfillstyle(SOLID_FILL, color);
     fillellipse(x+square_size/2,y+square_size/2,square_size/4,square_size/4);
     setcolor(WHITE);
     circle(x+square_size/2,y+square_size/2,square_size/4);
@@ -175,6 +187,33 @@ void drawBoard() {
         if(GameBoard[i][j] != 0) drawPiece(GameBoard[i][j],x1,y1);
     }
 }
+#pragma endregion
+
+void showTurn() {
+    char text[50];
+    sprintf(text, "It's Player %d's Turn", playerTurn);
+    outtextxy((screen_width-textwidth(text)) / 2, 50, text);
+}
+
+#pragma region Movement Logic
+bool isLegalMove(int player, int start_line, int start_col, int dest_line, int dest_col) {
+    // Check if cell is free
+    if(GameBoard[dest_line][dest_col]!=0) return false;
+
+    // validate destination boundaries
+    if (dest_line < 0 || dest_line >= BOARD_SQUARES || dest_col < 0 || dest_col >= BOARD_SQUARES) {
+        return false; 
+    }
+
+    // Movement rules:
+    if(player > FOX)
+        // Dogs can only move forward diagonally
+        if(start_line - dest_line == 1 && abs(start_col - dest_col) == 1) return true;
+    if(player == FOX)
+        // Fox can move one square diagonally in any direction
+        if(abs(start_line - dest_line) == 1 && abs(start_col - dest_col) == 1) return true;
+    return false;
+}
 
 void highlightPossibleMoves(int player, int line, int col) {
     int dest_line, dest_col;
@@ -200,48 +239,36 @@ void highlightPossibleMoves(int player, int line, int col) {
         }
     }
 }
-#pragma endregion
-
-#pragma region Movement Logic
-bool isLegalMove(int player, int start_line, int start_col, int dest_line, int dest_col) {
-    // Check if cell is free
-    if(GameBoard[dest_line][dest_col]!=0) return false;
-
-    // validate destination boundaries
-    if (dest_line < 0 || dest_line >= BOARD_SQUARES || dest_col < 0 || dest_col >= BOARD_SQUARES) {
-        return false; 
-    }
-
-    // Movement rules:
-    if(player == DOGS)
-        // Dogs can only move forward diagonally
-        if(start_line - dest_line == 1 && abs(start_col - dest_col) == 1) return true;
-    if(player == FOX)
-        // Fox can move one square diagonally in any direction
-        if(abs(start_line - dest_line) == 1 && abs(start_col - dest_col) == 1) return true;
-    return false;
-}
 
 int movesLeft(int line, int column) {
-    int moves = 0;
-    // Verifică diagonală sus-stânga
-    if (line > 0 && column > 0 && GameBoard[line - 1][column - 1] == 0)    moves++;
-    // Verifică diagonală sus-dreapta
-    if (line > 0 && column < 7 && GameBoard[line - 1][column + 1] == 0)    moves++;
-    // Verifică diagonală jos-stânga
-    if (line < 7 && column > 0 && GameBoard[line + 1][column - 1] == 0)    moves++;
-    // Verifică diagonală jos-dreapta
-    if (line < 7 && column < 7 && GameBoard[line + 1][column + 1] == 0)    moves++;
+    int moves = 0; 
+    int piece = GameBoard[line][column];
+    if(piece==FOX) {
+        // Verifică diagonală sus-stânga
+        if (line > 0 && column > 0 && GameBoard[line - 1][column - 1] == 0)    moves++;
+        // Verifică diagonală sus-dreapta
+        if (line > 0 && column < 7 && GameBoard[line - 1][column + 1] == 0)    moves++;
+        // Verifică diagonală jos-stânga
+        if (line < 7 && column > 0 && GameBoard[line + 1][column - 1] == 0)    moves++;
+        // Verifică diagonală jos-dreapta
+        if (line < 7 && column < 7 && GameBoard[line + 1][column + 1] == 0)    moves++;
+    }
+    else if(piece>=DOGS) {
+        // Verifică diagonală sus-stânga
+        if (line > 0 && column > 0 && GameBoard[line - 1][column - 1] == 0)    moves++;
+        // Verifică diagonală sus-dreapta
+        if (line > 0 && column < 7 && GameBoard[line - 1][column + 1] == 0)    moves++;
+    }
     return moves;
 }
 
-void movePiece() {
+void playerMove() {
     if(ismouseclick(WM_LBUTTONDOWN)) {
         clearmouseclick(WM_LBUTTONDOWN);
         x = mousex(); y = mousey();
         int start_line = (y-board_top)/square_size; int start_col = (x-board_left)/square_size;
         //Selectare piesa
-        if(GameBoard[start_line][start_col]==playerTurn) {
+        if((playerTurn==FOX&&GameBoard[start_line][start_col]==playerTurn)||(playerTurn==DOGS&&GameBoard[start_line][start_col]>=playerTurn)) {
             highlightPiece(start_line,start_col);
             highlightPossibleMoves(playerTurn,start_line,start_col);
             while (1) {
@@ -256,6 +283,9 @@ void movePiece() {
                             if(playerTurn == FOX) playerTurn = DOGS;
                             else if (playerTurn == DOGS) playerTurn = FOX;
                         }
+                        if(gameMode == MODE_VS_CPU_RANDOM || gameMode == MODE_VS_CPU_STRATEGY) {
+                            computerTurn = true;
+                        }
                     }
                     redraw=true;
                     break;
@@ -267,32 +297,98 @@ void movePiece() {
 #pragma endregion
 
 #pragma region Computer Logic
+void movePiece(int p_line, int p_col, int d_line, int d_col) {
+    int player = GameBoard[p_line][p_col];
+    //move piece
+    GameBoard[d_line][d_col] = player;
+    GameBoard[p_line][p_col] = 0;
+    redraw=true;
+}
 
+void randomMove() {
+    srand(time(NULL));
+    int computerPiece; int line, col, possibleMoves=0, move;
+
+    while(!possibleMoves) {
+        if (playerTurn==FOX) {
+            computerPiece = 2 + rand() % 4;
+        }
+        if (playerTurn==DOGS) {
+            computerPiece = FOX;
+        }
+
+        for(int i = 0; i < BOARD_SQUARES; i++)
+            for(int j = 0; j < BOARD_SQUARES; j++)
+                if(GameBoard[i][j]==computerPiece) {
+                    line = i;
+                    col = j;
+                }
+
+        possibleMoves=movesLeft(line,col);
+    }
+
+    int dx, dy, d_line, d_col;
+    
+    while (1) {
+        move = rand()%4;
+        switch (move) {
+            case 0:
+                //stanga sus
+                dy = -1; dx = -1;
+                break;
+            case 1:
+                //dreapta sus
+                dy = -1; dx = +1;
+                break;
+            case 2:
+                //stanga jos
+                dy = +1; dx = -1;
+                break;
+            case 3:
+                //dreapta jos
+                dy = +1; dx = +1;
+                break;
+        
+            default:
+                break;
+    }
+        d_line = line + dy;
+        d_col = col + dx;
+        if(isLegalMove(computerPiece,line,col,d_line,d_col)) {
+            movePiece(line,col,d_line,d_col);
+            computerTurn = false;
+            redraw = true;
+            break;
+        }
+    }
+}
 #pragma endregion
 
 void checkWin() {
     // Verifică dacă vulpea a ajuns pe ultima linie
     for (int i = 0; i < BOARD_SQUARES; i++) {
         if (GameBoard[BOARD_SQUARES-1][i] == FOX) { // Linia 7
-            winState = 1;
+            winState = FOX;
             return;
         }
     }
+    bool foxMovesLeft = false;
     // Verifică dacă vulpea mai are mutări posibile
     for (int i = 0; i < BOARD_SQUARES; i++)
         for (int j = 0; j < BOARD_SQUARES; j++)
             if (GameBoard[i][j] == FOX) // Găsește poziția vulpii
                 if (movesLeft(i,j)) {
                     winState = 0; // Vulpea mai are mutări, jocul continuă
-                    return;
+                    foxMovesLeft = true;
                 }
     // Dacă nu mai are mutări, câinii au câștigat
-    winState = 2;
+    if(!foxMovesLeft) winState = DOGS;
+    if(GameBoard[0][1]>=DOGS&&GameBoard[0][3]>=DOGS&&GameBoard[0][5]>=DOGS&&GameBoard[0][7]>=DOGS) winState = FOX;
 }
 
 int main() {
     FILE *saveFile;
-    initwindow(800, 600, "Proiect");
+    initwindow(screen_width, screen_height, "Proiect");
     char newGame;
 
     while (1) {
@@ -302,9 +398,9 @@ int main() {
         // Display main menu
         char text[100];
         sprintf(text, "Select an option:");
-        outtextxy((800 - textwidth(text)) / 2, 200, text);
+        outtextxy((screen_width - textwidth(text)) / 2, 200, text);
         sprintf(text, "0 - New Game          1 - Continue Last");
-        outtextxy((800 - textwidth(text)) / 2, 300, text);
+        outtextxy((screen_width - textwidth(text)) / 2, screen_height/2, text);
 
         // Menu interface with input validation
         while (1) {
@@ -318,7 +414,7 @@ int main() {
                     break; // Valid input
                 }
                 sprintf(text, "Error: Invalid selection. Press 1 or 0.");
-                outtextxy((800 - textwidth(text)) / 2, 500, text);
+                outtextxy((screen_width - textwidth(text)) / 2, 500, text);
             }
         }
 
@@ -333,7 +429,7 @@ int main() {
                     continue;
                 }
                 // Setup the initial game board
-                for (int i = 0; i < 8; i += 2) GameBoard[7][i] = DOGS;
+                for (int i = 0; i < 8; i += 2) GameBoard[7][i] = DOGS+i/2;
                 GameBoard[0][3] = FOX;
                 cleardevice(); drawBoard();
                 break;
@@ -370,10 +466,23 @@ int main() {
 
             // Check for win condition
             checkWin();
-
-            if(winState==FOX) printf("A castigat vulpea!");
-            else if(winState==DOGS) printf("Au castigat cainii!");
-            else movePiece();
+            if(winState!=0) {
+                cleardevice();
+                char text[100];
+                if(winState==FOX)  {
+                    sprintf(text,"The FOX has won!");
+                    outtextxy((screen_width - textwidth(text)) / 2, screen_height / 2, text);
+                }
+                else if(winState==DOGS) {
+                    sprintf(text,"The DOGS have won!");
+                    outtextxy((screen_width - textwidth(text)) / 2, screen_height / 2, text);
+                }
+            }
+            else {
+                if(gameMode==MODE_TWO_PLAYERS) showTurn();
+                playerMove();
+                if(computerTurn) randomMove();
+            }
 
             if (kbhit()) {
                 char key = getch();
@@ -384,7 +493,7 @@ int main() {
                 }
                 //Debugging
                 //sprintf(text, "You pressed: %c (%d)", key, key);
-                //outtextxy((800 - textwidth(text)) / 2, 500, text);
+                //outtextxy((screen_width - textwidth(text)) / 2, 500, text);
             }
 
             delay(50);
