@@ -8,9 +8,7 @@
 
 int left, top, size, x, y, xv, yv, latura, numar, linie, coloana, old_line, old_column, win=0;
 int TablaDeJoc[MAX][MAX] = {0};
-int mode = 1; // We keep mode=1 (vs Player) by default as previously. No logic changes.
-
-// Functions from previous code remain unchanged:
+int mode = 1;
 
 void gameFinish() {
     for(int i=1; i<=numar; i++) {
@@ -46,7 +44,6 @@ void seteazaTabla() {
         }
     }
 
-    // Hounds (2) on top row at columns 2,4,6,8
     for (int c = 2; c <= 8; c += 2) {
         int xcc = left+(c-1)*latura;
         int ycc = top+(1-1)*latura;
@@ -54,7 +51,6 @@ void seteazaTabla() {
         TablaDeJoc[1][c]=2;
     }
 
-    // Fox (1) at line=8, col=4
     int xcc = left+(4-1)*latura;
     int ycc = top+(8-1)*latura;
     drawPiece(xcc,ycc,1);
@@ -209,7 +205,7 @@ void mutaPiesa(int* player) {
             old_line = linie; old_column = coloana;
             highlightSelectedPiece(old_line, old_column);
             highlightPossibleMoves(*player, old_line, old_column);
-            // Wait for destination click
+
             while(1) {
                 if(ismouseclick(WM_LBUTTONDOWN)) {
                     clearmouseclick(WM_LBUTTONDOWN);
@@ -227,36 +223,34 @@ void mutaPiesa(int* player) {
     }
 }
 
-// New function: showMainMenu()
-// Displays the requested menu before the game starts.
-// Just text, no interactivity yet.
 void showMainMenu() {
-    cleardevice();
-    // Set background color if needed (not requested, so we leave black)
+    cleardevice(); // Clear the screen
 
     // Title in big, bold, lime green
     setcolor(LIGHTGREEN);
-    settextstyle(DEFAULT_FONT, HORIZ_DIR, 4); // bigger size
-    outtextxy(100,100,"FOX AND HOUNDS");
+    settextstyle(DEFAULT_FONT, HORIZ_DIR, 6); // Larger font size for title
+    outtextxy(300, 150, "FOX AND HOUNDS"); // Centered horizontally for the 1200x1000 window
 
     // Game modes in bold white
     setcolor(WHITE);
-    settextstyle(DEFAULT_FONT, HORIZ_DIR, 1); // normal size but we can consider it bold as per request
-    // Mode One
-    outtextxy(100,200,"Game mode One: Player versus player - See who's better , you or your friend");
-    // Mode Two
-    outtextxy(100,250,"Game mode Two: Player versus Computer");
+    settextstyle(DEFAULT_FONT, HORIZ_DIR, 3); // Medium-large font size for game modes
+    outtextxy(200, 300, "Game mode One: Player versus player");
+    outtextxy(200, 400, "Game mode Two: Player versus Computer");
 
-    // Menu is just displayed. User must press a key to continue.
-    outtextxy(100,350,"Press any key to continue...");
+    // Instruction to continue
+    settextstyle(DEFAULT_FONT, HORIZ_DIR, 2); // Slightly smaller font size for instruction
+    setcolor(YELLOW); // Bright yellow for visibility
+    outtextxy(400, 600, "Press any key to continue...");
+
+    // Wait for user input
     while(!kbhit()) {
-        delay(50);
+        delay(50); // Allow processing other events while waiting for a keypress
     }
-    getch(); // consume key
+    getch(); // Consume the key press
 }
 
 int main() {
-    initwindow(800,600,"Fox and Hounds - Debug Mode");
+    initwindow(1200,1000,"Fox and Hounds - Debug Mode");
 
     // Show the main menu first
     showMainMenu();
