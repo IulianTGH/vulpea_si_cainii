@@ -189,12 +189,14 @@ void drawBoard() {
 #pragma endregion
 
 void showTurn() {
+    setcolor(WHITE);
     char text[50];
     sprintf(text, "It's Player %d's Turn", playerTurn);
     outtextxy((screen_width-textwidth(text)) / 2, 50, text);
 }
 
 #pragma region Movement Logic
+
 bool isLegalMove(int player, int start_line, int start_col, int dest_line, int dest_col) {
     // Check if cell is free
     if(GameBoard[dest_line][dest_col]!=0) return false;
@@ -214,8 +216,10 @@ bool isLegalMove(int player, int start_line, int start_col, int dest_line, int d
     return false;
 }
 
-void highlightPossibleMoves(int player, int line, int col) {
+void highlightPossibleMoves(int line, int col) {
+    //declare necessary variables
     int dest_line, dest_col;
+    int player = GameBoard[line][col];
 
     // Iterate over all possible moves
     for (int dx = -1; dx <= 1; dx+=2) {
@@ -233,6 +237,33 @@ void highlightPossibleMoves(int player, int line, int col) {
 
                 // Highlight the square
                 int color = LIGHTRED;
+                drawSquare(color, x1, y1, x2, y2);
+            }
+        }
+    }
+}
+
+void unHighlight(int old_line, int old_col) {
+    //declare necessary variables
+    int dest_line, dest_col;
+    int player = GameBoard[old_line][old_col];
+
+    // Iterate over ALL possible moves (so innefficient)
+    for (int dx = -1; dx <= 1; dx+=2) {
+        for (int dy = -1; dy <= 1; dy+=2) {
+            dest_line = old_line + dx;
+            dest_col = old_col + dy;
+
+            // Check if the move is legal ;) let me cry let me cry
+            if (isLegalMove(player, old_line, old_col, dest_line, dest_col)) {
+                // Calculate the coordinates of the square
+                int x1 = board_left + dest_col * square_size;
+                int y1 = board_top + dest_line * square_size;
+                int x2 = x1 + square_size;
+                int y2 = y1 + square_size;
+
+                // unhighlight the square bruh
+                int color = DARKGRAY;
                 drawSquare(color, x1, y1, x2, y2);
             }
         }
@@ -261,6 +292,31 @@ int movesLeft(int line, int column) {
     return moves;
 }
 
+void movePiece(int p_line, int p_col, int d_line, int d_col) {
+    //declare necessary variables
+    int player = GameBoard[p_line][p_col];
+    int x1, y1, x2, y2, d_x, d_y;
+
+    //move piece
+    GameBoard[d_line][d_col] = player;
+    GameBoard[p_line][p_col] = 0;
+
+    //calculate old square coords for erasing
+    x1 = board_left + p_col * square_size;
+    y1 = board_top + p_line * square_size;
+    x2 = x1 + square_size;
+    y2 = y1 + square_size;
+
+    drawSquare(DARKGRAY, x1, y1, x2, y2);
+
+    //calculate new square coords for drawing piece
+    d_x = board_left + d_col * square_size;
+    d_y = board_top + d_line * square_size;
+
+    drawPiece(player, d_x, d_y);
+    
+}
+
 void playerMove() {
     if(ismouseclick(WM_LBUTTONDOWN)) {
         clearmouseclick(WM_LBUTTONDOWN);
@@ -268,16 +324,21 @@ void playerMove() {
         int start_line = (y-board_top)/square_size; int start_col = (x-board_left)/square_size;
         //Selectare piesa
         if((playerTurn==FOX&&GameBoard[start_line][start_col]==playerTurn)||(playerTurn==DOGS&&GameBoard[start_line][start_col]>=playerTurn)) {
-            highlightPiece(start_line,start_col);
-            highlightPossibleMoves(playerTurn,start_line,start_col);
+            highlightPiece(start_line, start_col);
+            highlightPossibleMoves(start_line, start_col);
             while (1) {
                 if(ismouseclick(WM_LBUTTONDOWN)) {
                     clearmouseclick(WM_LBUTTONDOWN);
                     x = mousex(); y=mousey();
                     int line = (y-board_top)/square_size; int column = (x-board_left)/square_size;
                     if(isLegalMove(GameBoard[start_line][start_col],start_line,start_col,line,column)) {
-                        GameBoard[line][column]=GameBoard[start_line][start_col];
-                        GameBoard[start_line][start_col]=0;
+                        //unHighlight old possible moves
+                        unHighlight(start_line, start_col);
+
+                        //move piece
+                        movePiece(start_line, start_col, line, column);
+
+                        //change Turn Logic
                         if(gameMode == MODE_TWO_PLAYERS) {
                             if(playerTurn == FOX) playerTurn = DOGS;
                             else if (playerTurn == DOGS) playerTurn = FOX;
@@ -296,13 +357,6 @@ void playerMove() {
 #pragma endregion
 
 #pragma region Computer Logic
-void movePiece(int p_line, int p_col, int d_line, int d_col) {
-    int player = GameBoard[p_line][p_col];
-    //move piece
-    GameBoard[d_line][d_col] = player;
-    GameBoard[p_line][p_col] = 0;
-    redraw=true;
-}
 
 void randomMove() {
     srand(time(NULL));
@@ -457,11 +511,6 @@ int main() {
 
         // Game Loop
         while (1) {
-            if (redraw) {
-                cleardevice();
-                drawBoard();
-                redraw = false; // Prevent unnecessary redraws
-            }
 
             // Check for win condition
             checkWin();
@@ -469,10 +518,12 @@ int main() {
                 cleardevice();
                 char text[100];
                 if(winState==FOX)  {
+                    setcolor(WHITE);
                     sprintf(text,"The FOX has won!");
                     outtextxy((screen_width - textwidth(text)) / 2, screen_height / 2, text);
                 }
                 else if(winState==DOGS) {
+                    setcolor(WHITE);
                     sprintf(text,"The DOGS have won!");
                     outtextxy((screen_width - textwidth(text)) / 2, screen_height / 2, text);
                 }
@@ -482,7 +533,7 @@ int main() {
                 playerMove();
                 if(computerTurn&&gameMode==MODE_VS_CPU_RANDOM) randomMove();
             }
-
+            //Test ESC key for save menu / go back to last menu / exit program
             if (kbhit()) {
                 char key = getch();
                 if (key == KEY_ESC) {
