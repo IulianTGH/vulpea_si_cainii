@@ -4,6 +4,8 @@ Lista de proiecte: https://edu.info.uaic.ro/introducere-programare/proiecte.html
 
 Materialu de laborator(Patrut): https://edu.info.uaic.ro/introducere-programare/laborator_grafica.html
 
+Documentatie joc: https://edu.info.uaic.ro/introducere-programare/Nicolae-Oprisiu-Olimpiada-Jocurilor-Rationale.pdf
+
 ## Barem / cerinte ramase:
 - ~~Din oficiu: 1p~~
 
