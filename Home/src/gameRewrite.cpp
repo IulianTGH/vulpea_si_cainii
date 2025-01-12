@@ -22,8 +22,9 @@
 int screen_width = 800;
 int screen_height = 600;
 //game logic
-int gameMode = -1, playerTurn = 0, winState = 0;
+int gameMode = -1, playerTurn = 0, winState = 0, strategy = 0, advanceOrder = 0;
 bool computerTurn = false; //flag for computer turn
+bool advance = false; //flag for dog advance
 //game board
 int board_size, board_top, board_left, square_size;
 int GameBoard[BOARD_SQUARES][BOARD_SQUARES] = {0};
@@ -46,7 +47,7 @@ void setGameMode(char key) {
             gameMode=MODE_VS_CPU_RANDOM;
             break;
         case KEY_2:
-            printf("Eroare - Modul de joc Vs CPU (Strategie) nu este implementat inca\n");
+            printf("Mod de joc selectat: Vs CPU (Strategie)\n");
             gameMode=MODE_VS_CPU_STRATEGY;
             break;
         default:
@@ -93,6 +94,10 @@ void resetGameState() {
     gameMode = -1; // Reset game mode
     playerTurn = FOX; // Reset player turn
     winState=0;
+    advance=false;
+    strategy = 0;
+    computerTurn = false;
+    advanceOrder = 0;
 }
 
 void saveGame() {
@@ -185,6 +190,16 @@ void drawBoard() {
         drawSquare(color,x1,y1,x2,y2);
         if(GameBoard[i][j] != 0) drawPiece(GameBoard[i][j],x1,y1);
     }
+    //draw positions
+    char letter = 'a';
+    char nr = '8';
+    char text[10];
+    for(int s = 0; s < BOARD_SQUARES; s++) {
+        sprintf(text,"%c",letter+s);
+        outtextxy(board_left+square_size*s+(square_size-textwidth(text))/2,board_size+board_top+(square_size-textheight(text))/2,text);
+        sprintf(text,"%c",nr-s);
+        outtextxy(board_left-(square_size-textwidth(text))/2,board_top+square_size*s+(square_size-textheight(text))/2,text);
+    }
 }
 #pragma endregion
 
@@ -247,6 +262,17 @@ void unHighlight(int old_line, int old_col) {
     //declare necessary variables
     int dest_line, dest_col;
     int player = GameBoard[old_line][old_col];
+    int x1, y1, x2, y2;
+    int color = DARKGRAY;
+
+    //coordinates for piece
+    x1 = board_left + old_col * square_size;
+    y1 = board_top + old_line * square_size;
+    x2 = x1 + square_size;
+    y2 = y1 + square_size;
+
+    drawSquare(color,x1,y1,x2,y2);
+    drawPiece(player,x1,y1);
 
     // Iterate over ALL possible moves (so innefficient)
     for (int dx = -1; dx <= 1; dx+=2) {
@@ -257,13 +283,12 @@ void unHighlight(int old_line, int old_col) {
             // Check if the move is legal ;) let me cry let me cry
             if (isLegalMove(player, old_line, old_col, dest_line, dest_col)) {
                 // Calculate the coordinates of the square
-                int x1 = board_left + dest_col * square_size;
-                int y1 = board_top + dest_line * square_size;
-                int x2 = x1 + square_size;
-                int y2 = y1 + square_size;
+                x1 = board_left + dest_col * square_size;
+                y1 = board_top + dest_line * square_size;
+                x2 = x1 + square_size;
+                y2 = y1 + square_size;
 
                 // unhighlight the square bruh
-                int color = DARKGRAY;
                 drawSquare(color, x1, y1, x2, y2);
             }
         }
@@ -331,10 +356,11 @@ void playerMove() {
                     clearmouseclick(WM_LBUTTONDOWN);
                     x = mousex(); y=mousey();
                     int line = (y-board_top)/square_size; int column = (x-board_left)/square_size;
-                    if(isLegalMove(GameBoard[start_line][start_col],start_line,start_col,line,column)) {
-                        //unHighlight old possible moves
-                        unHighlight(start_line, start_col);
+                    
+                    //unHighlight necessary stuff
+                    unHighlight(start_line, start_col);
 
+                    if(isLegalMove(GameBoard[start_line][start_col],start_line,start_col,line,column)) {
                         //move piece
                         movePiece(start_line, start_col, line, column);
 
@@ -347,7 +373,6 @@ void playerMove() {
                             computerTurn = true;
                         }
                     }
-                    redraw=true;
                     break;
                 }
             }
@@ -415,6 +440,293 @@ void randomMove() {
         }
     }
 }
+
+void advanceDogs(int order, int *index) {
+    int dog_line = -1, dog_col = -1;
+
+    // Find position of the current dog
+    for (int i = 0; i < BOARD_SQUARES; i++) {
+        for (int j = 0; j < BOARD_SQUARES; j++) {
+            if (GameBoard[i][j] == DOGS + *index) {
+                dog_line = i;
+                dog_col = j;
+                break;
+            }
+        }
+    }
+
+    // Ensure the dog was found
+    if (dog_line == -1 || dog_col == -1) {
+        printf("Error: Dog with index %d not found on the board.\n", *index);
+        return;
+    }
+
+    // Move the dog based on the order
+    if (order == 1) { // Left to right
+        movePiece(dog_line, dog_col, dog_line - 1, dog_col - 1);
+        printf("Dog %d successfully advanced.\n", *index+1);
+        (*index)--; // Decrement dog index
+    } else { // Right to left
+        movePiece(dog_line, dog_col, dog_line - 1, dog_col + 1);
+        printf("Dog %d successfully advanced.\n", *index+1);
+        (*index)++; // Increment dog index
+    }
+    computerTurn = false;
+    redraw = true;
+
+    // Check if all dogs have advanced
+    if ((order == 1 && *index < 0) || (order == 0 && *index > 3)) {
+        advance = false;
+        printf("All dogs have advanced by a line.\n");
+    }
+}
+
+void strategy_one(int counter, int *index) {
+    int dog_line = -1, dog_col = -1;
+    // Find position of the current dog
+    for (int i = 0; i < BOARD_SQUARES; i++) {
+        for (int j = 0; j < BOARD_SQUARES; j++) {
+            if (GameBoard[i][j] == DOGS + *index) {
+                dog_line = i;
+                dog_col = j;
+                break;
+            }
+        }
+    }
+
+    switch (counter) {
+        case 1:
+            movePiece(dog_line,dog_col,dog_line-1,dog_col+1);
+            printf("Dog %d succesfully moved",*index+1);
+            *index = 3;
+            printf("Next to move is Dog %d", *index+1);
+            break;//correct
+        case 2:
+            movePiece(dog_line,dog_col,dog_line-1,dog_col-1);
+            printf("Dog %d succesfully moved",*index+1);
+            *index = 1;
+            printf("Next to move is Dog %d", *index+1);
+            break;//corect
+        case 3:
+            movePiece(dog_line,dog_col,dog_line-1,dog_col-1);
+            printf("Dog %d succesfully moved",*index+1);
+            *index = 2;
+            printf("Next to move is Dog %d", *index+1);
+            break;//correct
+        case 4:
+            movePiece(dog_line,dog_col,dog_line-1,dog_col-1);
+            printf("Dog %d succesfully moved",*index+1);
+            *index = 0;
+            printf("Next to move is Dog %d", *index+1);
+            break;//correct
+        case 5:
+            movePiece(dog_line,dog_col,dog_line-1,dog_col+1);
+            printf("Dog %d succesfully moved",*index+1);
+            *index = 0;
+            printf("Next to move is Dog %d", *index+1);
+            break;//correct
+        case 6:
+            movePiece(dog_line,dog_col,dog_line-1,dog_col-1);
+            printf("Dog %d succesfully moved",*index+1);
+            *index = 2;//correct
+            printf("Next to move is Dog %d", *index+1);
+            break;
+        case 7:
+            movePiece(dog_line,dog_col,dog_line-1,dog_col+1);
+            printf("Dog %d succesfully moved",*index+1);
+            *index = 3;//correct
+            printf("Next to move is Dog %d", *index+1);
+            break;
+        case 8:
+            movePiece(dog_line,dog_col,dog_line-1,dog_col+1);
+            printf("Dog %d succesfully moved",*index+1);
+            printf("All dogs have been moved using the strategy");
+            strategy = 0;
+            break;
+        // need to implement a branching position based on the move the fox makes and the current counter
+        default:
+            break;
+    }
+
+    computerTurn = false;
+    redraw = true;
+}
+
+void strategy_two(int counter, int *index) {
+    int dog_line = -1, dog_col = -1;
+    // Find position of the current dog
+    for (int i = 0; i < BOARD_SQUARES; i++) {
+        for (int j = 0; j < BOARD_SQUARES; j++) {
+            if (GameBoard[i][j] == DOGS + *index) {
+                dog_line = i;
+                dog_col = j;
+                break;
+            }
+        }
+    }
+
+    switch (counter) {
+        case 1:
+            movePiece(dog_line,dog_col,dog_line-1,dog_col-1);
+            printf("Dog %d succesfully moved",*index+1);
+            *index = 1;
+            printf("Next to move is Dog %d", *index+1);
+            break;//correct
+        case 2:
+            movePiece(dog_line,dog_col,dog_line-1,dog_col+1);
+            printf("Dog %d succesfully moved",*index+1);
+            *index = 3;
+            printf("Next to move is Dog %d", *index+1);
+            break;//corect
+        case 3:
+            movePiece(dog_line,dog_col,dog_line-1,dog_col+1);
+            printf("Dog %d succesfully moved",*index+1);
+            *index = 2;
+            printf("Next to move is Dog %d", *index+1);
+            break;//correct
+        case 4:
+            movePiece(dog_line,dog_col,dog_line-1,dog_col+1);
+            printf("Dog %d succesfully moved",*index+1);
+            printf("All dogs have been moved using the strategy");
+            strategy = 0;
+            advanceOrder=1;
+            break;
+        
+        default:
+            break;
+    }
+
+    computerTurn = false;
+    redraw = true;
+}
+
+void mainStrategy() {
+    int fox_line, fox_col;
+    static int dogIndex, currentMove;
+    if(!strategy) currentMove = 0;
+    // Find fox position and check for strategy case
+    if(!strategy)
+    for (int i = 0; i < BOARD_SQUARES; i++) {
+        for (int j = 0; j < BOARD_SQUARES; j++) {
+            if (GameBoard[i][j] == FOX) {
+                fox_line = i;
+                fox_col = j;
+
+                // Detect first strategy case
+                if ((fox_line % 2 == 0 && fox_col == 1) || fox_col == 6) {
+                    bool dogs_blocking = true;
+                    int k = 0;
+                    if (fox_col%2==0) k = 1;
+                    for (k; k < BOARD_SQUARES; k += 2) {
+                        if (GameBoard[fox_line + 1][k] < DOGS) {
+                            dogs_blocking = false;
+                            break;
+                        }
+                    }
+                    if (dogs_blocking) {
+                        strategy = 1;
+                        dogIndex = 1;
+                        break;
+                    }
+                }
+
+                // Detect second strategy case
+                bool strategyTwo = false;
+                if (fox_line % 2 == 0 && fox_col == 3) {
+                    if(GameBoard[fox_line][fox_col-2]>=DOGS&&GameBoard[fox_line+1][fox_col-1]>=DOGS&&GameBoard[fox_line+1][fox_col+1]>=DOGS&&GameBoard[fox_line+1][fox_col+3]>=DOGS)
+                        strategyTwo=true;
+                }
+                else if (fox_col == 4) {
+                    if(GameBoard[fox_line][fox_col+2]>=DOGS&&GameBoard[fox_line+1][fox_col+1]>=DOGS&&GameBoard[fox_line+1][fox_col-1]>=DOGS&&GameBoard[fox_line+1][fox_col-3]>=DOGS)
+                        strategyTwo=true;
+                }
+
+                // setting the strategy case
+                if(strategyTwo) {
+                    strategy = 2;
+                    dogIndex = 3;
+                    break;
+                }
+
+                // Detect third strategy case
+                bool strategyThree = false;
+                if (fox_line % 2 == 0 && fox_col == 5) {
+                    if(GameBoard[fox_line][fox_col-2]>=DOGS&&GameBoard[fox_line][fox_col-4]>=DOGS&&GameBoard[fox_line+1][fox_col-1]>=DOGS&&GameBoard[fox_line+1][fox_col+1]>=DOGS)
+                        strategyThree=true;
+                }
+                else if (fox_col == 2) {
+                    if(GameBoard[fox_line][fox_col+2]>=DOGS&&GameBoard[fox_line][fox_col+4]>=DOGS&&GameBoard[fox_line+1][fox_col+1]>=DOGS&&GameBoard[fox_line+1][fox_col-1]>=DOGS)
+                        strategyThree=true;
+                }
+
+                // setting the strategy case
+                if(strategyThree) strategy = 3;
+
+                break;
+            }
+        }
+    }
+
+    char text[100];
+
+    switch (strategy) {
+        case 1:
+            sprintf(text,"Cazul 1 de strategie");
+            currentMove++;
+            strategy_one(currentMove,&dogIndex);
+
+            break;
+        case 2:
+            sprintf(text,"Cazul 2 de strategie");
+            currentMove++;
+            strategy_two(currentMove,&dogIndex);
+            break;
+        case 3:
+            sprintf(text,"Cazul 3 de strategie");
+            break;
+        default:
+            sprintf(text,"                                        ");
+            int dog_line, dog_col;
+            //static int advanceOrder,dogIndex;
+            //find first dog
+            if(!advance) {
+                for(int i=0; i<BOARD_SQUARES; i++)
+                    for(int j=0; j<BOARD_SQUARES; j++)
+                        if(GameBoard[i][j]==DOGS) {
+                            dog_line = i;
+                            dog_col = j;
+                        }
+                
+                bool dogLine = true;
+                for(int index = 0; index<4; index++) {
+                    if(GameBoard[dog_line][dog_col+2*index]<DOGS) {
+                        dogLine = false;
+                        printf("Dogs are not in line");
+                        break;
+                    }
+                }
+                if(dogLine) {
+                    advanceOrder = 0;
+                    dogIndex = 0;
+                    if(dog_line % 2 == 0) {
+                        advanceOrder = 1;
+                        dogIndex = 3;
+                    }
+                }
+                printf("Starting the advancement of all dogs by a line\n");
+                advance = true;
+            }
+
+            // Advance dogs by a line
+            if (advance) {
+                printf("Currently moving dog number %d.\n", dogIndex + 1);
+                advanceDogs(advanceOrder, &dogIndex);
+            }
+            break;
+    }
+    outtextxy((screen_width-textwidth(text))/2,20,text);
+}
+
 #pragma endregion
 
 void checkWin() {
@@ -472,7 +784,7 @@ int main() {
         }
 
         cleardevice();
-
+        
         // Handle main menu selection
         switch (newGame) {
             case KEY_0: // New Game
@@ -488,25 +800,29 @@ int main() {
                 break;
 
             case KEY_1: // Continue Last
+                char text[100];
                 saveFile = fopen("save.txt", "r");
                 if (saveFile == NULL) {
-                    closegraph();
-                    printf("Error: Could not open save file.\n");
-                    return 1;
+                    //sprintf(text,"Error: Could not open save file.");
+                    //outtextxy((screen_width-textwidth(text))/2,screen_height-30,text);
+                    printf("Error: Could not open save file.");
+                    continue;
                 }
-                fscanf(saveFile, "%d %d", &gameMode, &playerTurn);
-                for (int i = 0; i < 8; i++) {
-                    for (int j = 0; j < 8; j++) {
-                        fscanf(saveFile, "%d", &GameBoard[i][j]);
+                else {
+                    fscanf(saveFile, "%d %d", &gameMode, &playerTurn);
+                    for (int i = 0; i < 8; i++) {
+                        for (int j = 0; j < 8; j++) {
+                            fscanf(saveFile, "%d", &GameBoard[i][j]);
+                        }
                     }
+                    fclose(saveFile);
+                    cleardevice(); drawBoard();
+                    break;
                 }
-                fclose(saveFile);
-                cleardevice(); drawBoard();
-                break;
 
             default:
                 printf("Error: Invalid selection.\n");
-                return 0;
+                continue;
         }
 
         // Game Loop
@@ -529,9 +845,22 @@ int main() {
                 }
             }
             else {
-                if(gameMode==MODE_TWO_PLAYERS) showTurn();
-                playerMove();
-                if(computerTurn&&gameMode==MODE_VS_CPU_RANDOM) randomMove();
+                switch (gameMode) {
+                    case MODE_TWO_PLAYERS:
+                        showTurn();
+                        playerMove();
+                        break;
+                    case MODE_VS_CPU_RANDOM:
+                        playerMove();
+                        if(computerTurn) randomMove();
+                        break;
+                    case MODE_VS_CPU_STRATEGY:
+                        playerMove();
+                        if(computerTurn) mainStrategy();
+                        break;
+                    default:
+                        break;
+                }
             }
             //Test ESC key for save menu / go back to last menu / exit program
             if (kbhit()) {
