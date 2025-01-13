@@ -149,7 +149,13 @@ void drawSquare(int square_color, int x1, int y1, int x2, int y2) {
 
 void drawPiece(int player, int x, int y) {
     int color = FOX;
-    if(player>1) color = DOGS;
+    if(player>1) {
+        char text[10];
+        sprintf(text, "%d", player-2);
+        setcolor(WHITE);
+        outtextxy(x+square_size-textwidth(text),y+square_size-textheight(text),text);
+        color = DOGS;
+    }
     setfillstyle(SOLID_FILL, color);
     fillellipse(x+square_size/2,y+square_size/2,square_size/4,square_size/4);
     setcolor(WHITE);
@@ -441,8 +447,8 @@ void randomMove() {
     }
 }
 
-void advanceDogs(int order, int *index) {
-    int dog_line = -1, dog_col = -1;
+void advanceDogs(int order, int *cursor_line, int *cursor_col) {
+    /*int dog_line = -1, dog_col = -1;
 
     // Find position of the current dog
     for (int i = 0; i < BOARD_SQUARES; i++) {
@@ -453,32 +459,34 @@ void advanceDogs(int order, int *index) {
                 break;
             }
         }
-    }
+    }*/
 
-    // Ensure the dog was found
+    /*// Ensure the dog was found
     if (dog_line == -1 || dog_col == -1) {
         printf("Error: Dog with index %d not found on the board.\n", *index);
         return;
-    }
+    }*/
 
     // Move the dog based on the order
     if (order == 1) { // Left to right
-        movePiece(dog_line, dog_col, dog_line - 1, dog_col - 1);
-        printf("Dog %d successfully advanced.\n", *index+1);
-        (*index)--; // Decrement dog index
+        movePiece(*cursor_line, *cursor_col, *cursor_line - 1, *cursor_col - 1);
+        //printf("Dog %d successfully advanced.\n", *index+1);
+        (*cursor_col)-=2; // Decrement dog index
     } else { // Right to left
-        movePiece(dog_line, dog_col, dog_line - 1, dog_col + 1);
-        printf("Dog %d successfully advanced.\n", *index+1);
-        (*index)++; // Increment dog index
+        movePiece(*cursor_line, *cursor_col, *cursor_line - 1, *cursor_col + 1);
+        //printf("Dog %d successfully advanced.\n", *index+1);
+        (*cursor_col)+=2; // Increment dog index
     }
     computerTurn = false;
-    redraw = true;
 
     // Check if all dogs have advanced
-    if ((order == 1 && *index < 0) || (order == 0 && *index > 3)) {
+    if ((order == 1 && *cursor_col < 1) || (order == 0 && *cursor_col > 6)) {
         advance = false;
         printf("All dogs have advanced by a line.\n");
+        if(order==0)highlightPiece(*cursor_line-1,*cursor_col-1);
+        if(order==1) highlightPiece(*cursor_line-1,*cursor_col+1);
     }
+    else highlightPiece(*cursor_line,*cursor_col);
 }
 
 void strategy_one(int counter, int *index) {
@@ -540,8 +548,8 @@ void strategy_one(int counter, int *index) {
         case 8:
             movePiece(dog_line,dog_col,dog_line-1,dog_col+1);
             printf("Dog %d succesfully moved",*index+1);
-            printf("All dogs have been moved using the strategy");
-            strategy = 0;
+            printf("All dogs have been moved using the strategy\n");
+            strategy = -1;
             break;
         // need to implement a branching position based on the move the fox makes and the current counter
         default:
@@ -549,7 +557,6 @@ void strategy_one(int counter, int *index) {
     }
 
     computerTurn = false;
-    redraw = true;
 }
 
 void strategy_two(int counter, int *index) {
@@ -587,9 +594,10 @@ void strategy_two(int counter, int *index) {
         case 4:
             movePiece(dog_line,dog_col,dog_line-1,dog_col+1);
             printf("Dog %d succesfully moved",*index+1);
-            printf("All dogs have been moved using the strategy");
-            strategy = 0;
+            printf("All dogs have been moved using the strategy\n");
+            strategy = -1;
             advanceOrder=1;
+            advance=false;
             break;
         
         default:
@@ -597,21 +605,131 @@ void strategy_two(int counter, int *index) {
     }
 
     computerTurn = false;
-    redraw = true;
+}
+
+void strategy_three(int counter, int *index) {
+    int dog_line = -1, dog_col = -1;
+    // Find position of the current dog
+    for (int i = 0; i < BOARD_SQUARES; i++) {
+        for (int j = 0; j < BOARD_SQUARES; j++) {
+            if (GameBoard[i][j] == DOGS + *index) {
+                dog_line = i;
+                dog_col = j;
+                break;
+            }
+        }
+    }
+
+    switch (counter) {
+        case 1:
+            movePiece(dog_line,dog_col,dog_line-1,dog_col-1);
+            printf("Dog %d succesfully moved",*index+1);
+            *index = 0;
+            printf("Next to move is Dog %d", *index+1);
+            break;//correct
+        case 2:
+            movePiece(dog_line,dog_col,dog_line-1,dog_col+1);
+            printf("Dog %d succesfully moved",*index+1);
+            *index = 0;
+            printf("Next to move is Dog %d", *index+1);
+            break;//correct
+        case 3:
+            movePiece(dog_line,dog_col,dog_line-1,dog_col+1);
+            printf("Dog %d succesfully moved",*index+1);
+            *index = 1;
+            printf("Next to move is Dog %d", *index+1);
+            break;//correct
+        case 4:
+            movePiece(dog_line,dog_col,dog_line-1,dog_col-1);
+            printf("Dog %d succesfully moved",*index+1);
+            *index = 1;
+            printf("Next to move is Dog %d", *index+1);
+            break;//correct
+        case 5:
+            movePiece(dog_line,dog_col,dog_line-1,dog_col-1);
+            printf("Dog %d succesfully moved",*index+1);
+            *index = 3;
+            printf("Next to move is Dog %d", *index+1);
+            break;//correct
+        case 6:
+            movePiece(dog_line,dog_col,dog_line-1,dog_col-1);
+            printf("Dog %d succesfully moved",*index+1);
+            *index = 2;
+            printf("Next to move is Dog %d", *index+1);
+            break;//correct
+        case 7:
+            movePiece(dog_line,dog_col,dog_line-1,dog_col+1);
+            printf("Dog %d succesfully moved",*index+1);
+            *index = 2;
+            printf("Next to move is Dog %d", *index+1);
+            break;//correct
+        case 8:
+            movePiece(dog_line,dog_col,dog_line-1,dog_col+1);
+            printf("Dog %d succesfully moved",*index+1);
+            printf("All dogs have been moved using the strategy\n");
+            strategy = -1;
+            advanceOrder=1;
+            advance=false;
+            break;
+        case 12:
+            movePiece(dog_line,dog_col,dog_line-1,dog_col-1);
+            printf("Dog %d succesfully moved",*index+1);
+            *index = 0;
+            printf("Next to move is Dog %d", *index+1);
+            break;//correct
+        case 13:
+            movePiece(dog_line,dog_col,dog_line-1,dog_col-1);
+            printf("Dog %d succesfully moved",*index+1);
+            *index = 0;
+            printf("Next to move is Dog %d", *index+1);
+            break;//correct
+        case 14:
+            movePiece(dog_line,dog_col,dog_line-1,dog_col+1);
+            printf("Dog %d succesfully moved",*index+1);
+            *index = 1;
+            printf("Next to move is Dog %d", *index+1);
+            break;//correct
+        case 15:
+            movePiece(dog_line,dog_col,dog_line-1,dog_col+1);
+            printf("Dog %d succesfully moved",*index+1);
+            *index = 3;
+            printf("Next to move is Dog %d", *index+1);
+            break;//correct
+        case 16:
+            movePiece(dog_line,dog_col,dog_line-1,dog_col+1);
+            printf("Dog %d succesfully moved",*index+1);
+            *index = 2;
+            printf("Next to move is Dog %d", *index+1);
+            break;//correct
+        case 17:
+            movePiece(dog_line,dog_col,dog_line-1,dog_col+1);
+            printf("Dog %d succesfully moved",*index+1);
+            printf("All dogs have been moved using the strategy\n");
+            strategy = -1;
+            advanceOrder=1;
+            advance=false;
+            *index = 2;
+            break;//correct
+        
+        default:
+            break;
+    }
+
+    computerTurn = false;
 }
 
 void mainStrategy() {
     int fox_line, fox_col;
     static int dogIndex, currentMove;
-    if(!strategy) currentMove = 0;
+    if(strategy<=0) currentMove = 0;
     // Find fox position and check for strategy case
-    if(!strategy)
-    for (int i = 0; i < BOARD_SQUARES; i++) {
-        for (int j = 0; j < BOARD_SQUARES; j++) {
+    for (int i = 0; i < BOARD_SQUARES; i++) 
+        for (int j = 0; j < BOARD_SQUARES; j++) 
             if (GameBoard[i][j] == FOX) {
                 fox_line = i;
                 fox_col = j;
-
+            }
+    if(strategy<=0) {
                 // Detect first strategy case
                 if ((fox_line % 2 == 0 && fox_col == 1) || fox_col == 6) {
                     bool dogs_blocking = true;
@@ -620,13 +738,11 @@ void mainStrategy() {
                     for (k; k < BOARD_SQUARES; k += 2) {
                         if (GameBoard[fox_line + 1][k] < DOGS) {
                             dogs_blocking = false;
-                            break;
                         }
                     }
                     if (dogs_blocking) {
                         strategy = 1;
                         dogIndex = 1;
-                        break;
                     }
                 }
 
@@ -645,7 +761,6 @@ void mainStrategy() {
                 if(strategyTwo) {
                     strategy = 2;
                     dogIndex = 3;
-                    break;
                 }
 
                 // Detect third strategy case
@@ -660,11 +775,10 @@ void mainStrategy() {
                 }
 
                 // setting the strategy case
-                if(strategyThree) strategy = 3;
-
-                break;
-            }
-        }
+                if(strategyThree) {
+                    strategy = 3;
+                    dogIndex = 3;
+                }
     }
 
     char text[100];
@@ -683,10 +797,21 @@ void mainStrategy() {
             break;
         case 3:
             sprintf(text,"Cazul 3 de strategie");
+            if(currentMove==1) {
+                if(GameBoard[fox_line+2][fox_col]==2) {
+                    dogIndex=1;
+                    currentMove+=10;
+                }
+                else if(GameBoard[fox_line+2][fox_col]==3)  sprintf(text,"Cazul 3 de strategie - I");
+            }
+            currentMove++;
+            printf("Current move number: %d", currentMove);
+            strategy_three(currentMove,&dogIndex);
             break;
         default:
             sprintf(text,"                                        ");
             int dog_line, dog_col;
+            static int cursor_line, cursor_col;
             //static int advanceOrder,dogIndex;
             //find first dog
             if(!advance) {
@@ -707,12 +832,24 @@ void mainStrategy() {
                 }
                 if(dogLine) {
                     advanceOrder = 0;
-                    dogIndex = 0;
+                    cursor_line = dog_line;
+                    cursor_col = 0;
                     if(dog_line % 2 == 0) {
                         advanceOrder = 1;
-                        dogIndex = 3;
+                        cursor_col = 7;
                     }
                 }
+                if(strategy==-1) {
+                    for(int i = 0; i < BOARD_SQUARES; i++)
+                        for(int j = 0; j < BOARD_SQUARES; j++)
+                            if(GameBoard[i][j]==DOGS+dogIndex) {
+                                cursor_line = i;
+                                cursor_col = j;
+                                break;
+                            }
+                    printf("Successfully changed cursor to dog index %d\n", dogIndex);
+                }
+                strategy = 0;
                 printf("Starting the advancement of all dogs by a line\n");
                 advance = true;
             }
@@ -720,7 +857,7 @@ void mainStrategy() {
             // Advance dogs by a line
             if (advance) {
                 printf("Currently moving dog number %d.\n", dogIndex + 1);
-                advanceDogs(advanceOrder, &dogIndex);
+                advanceDogs(advanceOrder, &cursor_line, &cursor_col);
             }
             break;
     }
