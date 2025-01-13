@@ -1,0 +1,10 @@
+# depslib dependency file v1.0
+1736767757 source:c:\users\teodo\desktop\facultate\cursor\proiect final\main.cpp
+	<stdio.h>
+	<graphics.h>
+	<winbgim.h>
+	<math.h>
+	<conio.h>
+	<stdlib.h>
+	<time.h>
+
