@@ -448,6 +448,7 @@ void randomMove() {
 }
 
 void advanceDogs(int order, int *cursor_line, int *cursor_col) {
+    int player = GameBoard[*cursor_line][*cursor_col];
     /*int dog_line = -1, dog_col = -1;
 
     // Find position of the current dog
@@ -469,13 +470,19 @@ void advanceDogs(int order, int *cursor_line, int *cursor_col) {
 
     // Move the dog based on the order
     if (order == 1) { // Left to right
-        movePiece(*cursor_line, *cursor_col, *cursor_line - 1, *cursor_col - 1);
-        //printf("Dog %d successfully advanced.\n", *index+1);
-        (*cursor_col)-=2; // Decrement dog index
+        if(isLegalMove(player,*cursor_line, *cursor_col, *cursor_line - 1, *cursor_col - 1)) {
+            movePiece(*cursor_line, *cursor_col, *cursor_line - 1, *cursor_col - 1);
+            //printf("Dog %d successfully advanced.\n", *index+1);
+            (*cursor_col)-=2; // Decrement dog index
+        }
+        else movePiece(*cursor_line+1,*cursor_col+1,*cursor_line-1,*cursor_col-1);
     } else { // Right to left
-        movePiece(*cursor_line, *cursor_col, *cursor_line - 1, *cursor_col + 1);
-        //printf("Dog %d successfully advanced.\n", *index+1);
-        (*cursor_col)+=2; // Increment dog index
+        if(isLegalMove(player,*cursor_line, *cursor_col, *cursor_line - 1, *cursor_col + 1)) {
+            movePiece(*cursor_line, *cursor_col, *cursor_line - 1, *cursor_col + 1);
+            //printf("Dog %d successfully advanced.\n", *index+1);
+            (*cursor_col)+=2; // Increment dog index
+        }
+        else movePiece(*cursor_line+1,*cursor_col-1,*cursor_line-1,*cursor_col+1);
     }
     computerTurn = false;
 
@@ -670,6 +677,7 @@ void strategy_three(int counter, int *index) {
             strategy = -1;
             advanceOrder=1;
             advance=false;
+            *index=0;
             break;
         case 12:
             movePiece(dog_line,dog_col,dog_line-1,dog_col-1);
@@ -817,9 +825,10 @@ void mainStrategy() {
             if(!advance) {
                 for(int i=0; i<BOARD_SQUARES; i++)
                     for(int j=0; j<BOARD_SQUARES; j++)
-                        if(GameBoard[i][j]==DOGS) {
+                        if(GameBoard[i][j]>=DOGS) {
                             dog_line = i;
                             dog_col = j;
+                            break;
                         }
                 
                 bool dogLine = true;
